@@ -1,0 +1,42 @@
+"""Tabla usuario (Tabla 24 del TFG) con los seis perfiles de la Tabla 30."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from enum import Enum
+from typing import Optional
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.core.db import Base
+from app.tablas_generales.models import ahora_utc
+
+
+class Rol(str, Enum):
+    ADMIN = "ADMIN"                       # Administrador del sistema
+    RESP_MKT_VENTAS = "RESP_MKT_VENTAS"   # Responsable de Marketing y Ventas
+    ASESOR = "ASESOR"                     # Asesor comercial
+    RESP_POSVENTA = "RESP_POSVENTA"      # Responsable de Posventa
+    TECNICO_TALLER = "TECNICO_TALLER"    # Técnico de Taller
+    RESP_USADOS = "RESP_USADOS"           # Responsable de División Usados
+    TECNICO = "TECNICO"                   # Usuario técnico (n8n, API key)
+
+
+class Usuario(Base):
+    __tablename__ = "usuario"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    legajo: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    correo: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    nombre: Mapped[str] = mapped_column(String(120))
+    rol: Mapped[Rol] = mapped_column(String(30), default=Rol.ASESOR)
+    id_sucursal: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    hash_clave: Mapped[str] = mapped_column(String(120))
+    intentos_fallidos: Mapped[int] = mapped_column(Integer, default=0)
+    bloqueado_hasta: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    debe_cambiar_clave: Mapped[bool] = mapped_column(Boolean, default=False)
+    clave_temporal_hasta: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    ultima_actividad: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora_utc)

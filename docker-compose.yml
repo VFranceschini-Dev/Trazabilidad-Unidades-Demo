@@ -1,0 +1,128 @@
+name: demo-unidades
+
+services:
+  db:
+    image: postgres:16.4
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-demo_unidades}
+      POSTGRES_USER: ${DEMO_DB_OWNER:-demo_migraciones}
+      POSTGRES_PASSWORD: ${DEMO_DB_OWNER_PASSWORD:?usar .env}
+    volumes:
+      - datos_db:/var/lib/postgresql/data
+      - ./scripts/init_db_roles.sql:/docker-entrypoint-initdb.d/01_roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DEMO_DB_OWNER:-demo_migraciones} -d ${POSTGRES_DB:-demo_unidades}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${DEMO_DB_APP_USER:-demo_app}:${DEMO_DB_APP_PASSWORD:?usar .env}@db:5432/${POSTGRES_DB:-demo_unidades}
+      DATABASE_URL_MIGRACIONES: postgresql+psycopg://${DEMO_DB_OWNER:-demo_migraciones}:${DEMO_DB_OWNER_PASSWORD:?usar .env}@db:5432/${POSTGRES_DB:-demo_unidades}
+      N8N_API_KEY: ${N8N_API_KEY:?usar .env}
+      JWT_SECRET: ${JWT_SECRET:?usar .env}
+      DMS_API_URL: http://dms:8100
+      ACTAS_DIR: /srv/datos_demo/actas_pdf
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./scripts:/srv/scripts:ro
+      - ./datos_demo:/srv/datos_demo
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/api/v1/salud',timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      API_BASE_URL: http://api:8000/api/v1
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8501/_stcore/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  dms:
+    build:
+      context: .
+      dockerfile: dms_simulado/Dockerfile
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8100/salud',timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  traccar:
+    image: traccar/traccar:6.4
+    ports:
+      - "127.0.0.1:8082:8082"
+      - "127.0.0.1:5055:5055"
+    volumes:
+      - datos_traccar:/opt/traccar/data
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 3 bash -c 'cat < /dev/null > /dev/tcp/localhost/8082' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  n8n:
+    image: n8nio/n8n:1.53.4
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      GENERIC_TIMEZONE: America/Argentina/Buenos_Aires
+      TZ: America/Argentina/Buenos_Aires
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: admin
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_CLAVE_ADMIN:-demo-n8n}
+    volumes:
+      - datos_n8n:/home/node/.n8n
+      - ./n8n:/flujos:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:5678/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  mail:
+    image: greenmail/standalone:1.6.15
+    ports:
+      - "127.0.0.1:3025:3025"
+
+  nginx:
+    image: nginx:1.27.1-alpine-slim
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+volumes:
+  datos_db:
+  actas_pdf:
+  datos_n8n:
+  datos_traccar:
