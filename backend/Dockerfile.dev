@@ -1,0 +1,19 @@
+# Imagen de TEST (perfil "test"): produccion + dependencias de desarrollo.
+# No se usa para el servicio api; solo la construye el servicio "test".
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /srv
+
+# Contexto de build = raiz del repo (ver docker-compose.yml)
+COPY backend/requirements.txt backend/requirements-dev.txt /srv/backend/
+RUN pip install --no-cache-dir -r /srv/backend/requirements-dev.txt
+
+COPY backend/ /srv/backend/
+COPY scripts/ /srv/scripts/
+COPY datos_demo/ /srv/datos_demo/
+COPY pyproject.toml /srv/pyproject.toml
+# tests/ se monta como volumen al ejecutar (ver docker-compose.yml, servicio test)
+
+WORKDIR /srv/backend
+CMD ["pytest", "/srv/tests", "-q"]

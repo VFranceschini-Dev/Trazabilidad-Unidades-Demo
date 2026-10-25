@@ -1,0 +1,8 @@
+# Dependencias de desarrollo: NO van en la imagen de producción (backend/Dockerfile).
+# Se instalan solo en el servicio/perfil "test" de docker-compose.yml.
+-r requirements.txt
+pytest==8.3.3
+pytest-cov==5.0.0
+httpx==0.27.2
+ruff==0.6.9
+mypy==1.11.2

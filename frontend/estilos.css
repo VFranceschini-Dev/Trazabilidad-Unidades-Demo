@@ -1,0 +1,55 @@
+/* Estilo comun tomado de las referencias (referencia_pantallas/). */
+.stApp { background-color: #F7F8FA; }
+
+/* Menu lateral gris claro */
+[data-testid="stSidebar"] {
+    background-color: #F0F2F6;
+    border-right: 1px solid #DDE1E7;
+}
+[data-testid="stSidebar"] .sb-marca {
+    font-size: 1.25rem; font-weight: 700; color: #1F3864; margin-bottom: .2rem;
+}
+[data-testid="stSidebar"] .sb-sub {
+    font-size: .82rem; color: #5B6B85; margin-bottom: 1.2rem;
+}
+
+/* Titulos azul marino */
+h1, h2, h3 { color: #1F3864 !important; }
+.titulo-pagina { font-size: 1.55rem; font-weight: 700; color: #1F3864; margin-bottom: .35rem; }
+.subtitulo { color: #5B6B85; font-size: .9rem; margin-bottom: 1.1rem; }
+
+/* Tarjetas blancas con borde y radio 10 px */
+.tarjeta {
+    background: #FFFFFF; border: 1px solid #DDE1E7; border-radius: 10px;
+    padding: 1.1rem 1.3rem; margin-bottom: 1rem;
+}
+.tarjeta .etiqueta { color: #5B6B85; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+.tarjeta .valor { color: #1B2A41; font-size: 1rem; font-weight: 600; }
+
+/* Chips de estado */
+.chip { display: inline-block; padding: .18rem .7rem; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+.chip-DISPONIBLE { background: #E5F6E8; color: #1E7B34; border: 1px solid #9BD7A8; }
+.chip-ASIGNADA   { background: #E3ECF9; color: #1F3864; border: 1px solid #A9C2E8; }
+.chip-EN_USO     { background: #FDF3DC; color: #8a6d1b; border: 1px solid #F0D48A; }
+.chip-EN_PRESTAMO{ background: #EFE7FA; color: #5B2D9E; border: 1px solid #CBB3EC; }
+.chip-EN_SERVICE { background: #ECEEF1; color: #4A5568; border: 1px solid #C6CCD6; }
+.chip-EN_VENTA   { background: #FBE4E4; color: #B42318; border: 1px solid #F0A9A2; }
+.chip-BAJA       { background: #2B2F36; color: #E8EAED; border: 1px solid #2B2F36; }
+
+/* Botones */
+button[kind="primary"], .stButton > button[kind="primary"] {
+    background: #1F3864; color: #fff; border: 1px solid #1F3864; border-radius: 8px;
+}
+button[kind="secondary"], .stButton > button[kind="secondary"] {
+    background: #fff; color: #1B2A41; border: 1px solid #C6CCD6; border-radius: 8px;
+}
+button.destructivo, .stButton > button.destructivo {
+    background: #fff; color: #B42318; border: 1px solid #B42318; border-radius: 8px;
+}
+
+/* Alertas con barra lateral */
+div[data-testid="stAlert"] { border-left-width: 5px; border-radius: 8px; }
+
+/* Ocultar chrome de Streamlit */
+#MainMenu, footer, header[data-testid="stHeader"] { visibility: hidden; }
+
