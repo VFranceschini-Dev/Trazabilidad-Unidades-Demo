@@ -1,6 +1,8 @@
+# Secretos reales: nunca comitear. .env.example SI se versiona (plantilla sin secretos).
 .env
 .env.local
-*.env.*
+# OJO: el patrón "*.env.*" ignoraba también ".env.example"; se excluye explícitamente.
+!.env.example
 __pycache__/
 *.pyc
 *.pyo
