@@ -54,9 +54,11 @@ sobre esa tabla; el rol dueño (`demo_migraciones`) ejecuta las migraciones.
 
 ## Pruebas
 
-`make test` corre unitarias, de integración (contra Postgres efímero en Docker) y de aceptación por HU,
-con exigencia de cobertura ≥ 80 % en `core/` y servicios de dominio. Sin Docker, las pruebas de
-integración se omiten automáticamente.
+`make test` (o `scripts/test.ps1` en Windows) corre la suite **dentro de Docker** (servicio `test`
+del perfil `test`): unitarias, de integración y de aceptación por HU contra una base PostgreSQL
+efímera (`demo_unidades_test`) creada y migrada en el servicio `db` al iniciar, y eliminada al
+terminar. Requiere `.env` presente (nunca se modifica ni se versiona). Exigencia de cobertura
+≥ 80 % en `core/` y servicios de dominio.
 
 Fuera de alcance (ver `docs/decisiones.md`): conexión real con DMS/Strix/FordPass, llaveros BLE/ESP32,
 app móvil, correo real a usuarios y publicación en internet.

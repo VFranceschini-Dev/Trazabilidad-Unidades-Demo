@@ -40,9 +40,9 @@ actas:
 gps:
 	$(COMPOSE) exec -T api python /srv/scripts/simular_gps.py
 
-## test: suite completa (unitarias + integracion con Postgres efimero + aceptacion)
+## test: suite completa dentro de Docker (perfil test) contra Postgres efimero del servicio db
 test:
-	python -m pytest tests -q --maxfail=999
+	$(COMPOSE) --profile test run --rm test
 
 capturas:
 	python scripts/capturas.py

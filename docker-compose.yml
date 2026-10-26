@@ -7,9 +7,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-demo_unidades}
       POSTGRES_USER: ${DEMO_DB_OWNER:-demo_migraciones}
       POSTGRES_PASSWORD: ${DEMO_DB_OWNER_PASSWORD:?usar .env}
+      DEMO_DB_APP_USER: ${DEMO_DB_APP_USER:-demo_app}
+      DEMO_DB_APP_PASSWORD: ${DEMO_DB_APP_PASSWORD:?usar .env}
     volumes:
       - datos_db:/var/lib/postgresql/data
-      - ./scripts/init_db_roles.sql:/docker-entrypoint-initdb.d/01_roles.sql:ro
+      - ./scripts/init_db_roles.sh:/docker-entrypoint-initdb.d/01_roles.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DEMO_DB_OWNER:-demo_migraciones} -d ${POSTGRES_DB:-demo_unidades}"]
       interval: 5s
@@ -67,6 +69,33 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  test:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.test
+    profiles: ["test"]
+    env_file: .env
+    environment:
+      BACKEND_DIR: /srv/backend
+      PYTHONPATH: /srv/backend
+      TEST_DB_NAME: ${TEST_DB_NAME:-demo_unidades_test}
+      DATABASE_URL: postgresql+psycopg://${DEMO_DB_APP_USER:-demo_app}:${DEMO_DB_APP_PASSWORD:?usar .env}@db:5432/${TEST_DB_NAME:-demo_unidades_test}
+      DATABASE_URL_MIGRACIONES: postgresql+psycopg://${DEMO_DB_OWNER:-demo_migraciones}:${DEMO_DB_OWNER_PASSWORD:?usar .env}@db:5432/${TEST_DB_NAME:-demo_unidades_test}
+      DMS_API_URL: http://dms:8100
+    working_dir: /srv
+    volumes:
+      - ./tests:/srv/tests:ro
+      - ./backend:/srv/backend:ro
+      - ./scripts:/srv/scripts:ro
+      - ./datos_demo:/srv/datos_demo:ro
+      - ./pytest.ini:/srv/pytest.ini:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      dms:
+        condition: service_healthy
+    command: python -m pytest -q
 
   traccar:
     image: traccar/traccar:6.4
