@@ -48,9 +48,9 @@ class TipoEvento(str, Enum):
 
 
 class Origen(str, Enum):
-    """Origen tecnico del evento (WEB/N8N/TRACCAR/DMS del TFG; API reemplaza a WEB)."""
+    """Origen tecnico del evento: solo los valores del diccionario de datos del TFG."""
 
-    API = "API"
+    WEB = "WEB"
     N8N = "N8N"
     TRACCAR = "TRACCAR"
     DMS = "DMS"

@@ -30,8 +30,8 @@ SEDES = [
 ]
 
 PARAMETROS = [
-    ("plazo_rotacion_meses", "COMERCIAL", None, "24"),
-    ("plazo_rotacion_meses", "POSVENTA", None, "18"),
+    ("plazo_rotacion_meses", "COMERCIAL", None, "6"),
+    ("plazo_rotacion_meses", "POSVENTA", None, "12"),
     ("umbral_ocr", None, None, "80"),
     ("aviso_service_km", None, None, "500"),
     ("service_intervalo_km", None, None, "10000"),
@@ -142,7 +142,7 @@ def sembrar() -> None:
                     id_sucursal=sucursal,
                     km_inicial=km,
                     usuario=mkt,
-                    origen=estados.Origen.API,
+                    origen=estados.Origen.WEB,
                     fecha_hora=ahora - timedelta(days=45 - i),
                 )
         sesion.commit()

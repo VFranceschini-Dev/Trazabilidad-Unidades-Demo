@@ -20,6 +20,7 @@ $body$;
 GRANT CONNECT ON DATABASE :db TO :app_user;
 GRANT USAGE ON SCHEMA public TO :app_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :app_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO :app_user;
 
 -- El trigger de inmutabilidad y el REVOKE sobre evento_unidad los crean las migraciones Alembic
 -- (dueno: demo_migraciones); ver migraciones/versions/0001_nucleo.py y 0002.

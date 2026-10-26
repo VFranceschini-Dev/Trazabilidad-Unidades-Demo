@@ -59,8 +59,13 @@ def validar_carga_diferida(sesion: Session, id_unidad: int | None, fecha_hora: O
 
 
 def fecha_limite_rotacion(sesion: Session, circuito: Circuito, fecha_alta: datetime) -> datetime:
-    """HU-02.4: plazo configurado segun politica de la marca (parametro por circuito)."""
-    meses = int(valor_parametro(sesion, "plazo_rotacion_meses", "24", circuito=circuito.value))
+    """HU-02.4: plazo configurado segun politica de la marca (parametro por circuito).
+
+    El TFG fija rotacion de entre seis meses y un ano: defaults 6 (COMERCIAL) y 12
+    (POSVENTA) si el parametro no esta cargado (docs/decisiones.md).
+    """
+    por_defecto = "6" if circuito is Circuito.COMERCIAL else "12"
+    meses = int(valor_parametro(sesion, "plazo_rotacion_meses", por_defecto, circuito=circuito.value))
     return fecha_alta + timedelta(days=meses * 30)
 
 
@@ -82,7 +87,7 @@ def alta_unidad(
     id_sucursal: str,
     km_inicial: int,
     usuario: Any,
-    origen: estados.Origen = estados.Origen.API,
+    origen: estados.Origen = estados.Origen.WEB,
     fecha_hora: Optional[datetime] = None,
 ) -> UnidadDemo:
     """HU-02: VIN de 17 caracteres, patente/VIN no registrados; queda DISPONIBLE con evento ALTA."""
@@ -112,7 +117,7 @@ def alta_unidad(
     if sesion.scalar(select(Sucursal).where(Sucursal.codigo == id_sucursal)) is None:
         raise ErrorDominio(codigo="SUCURSAL_INEXISTENTE", mensaje="La sucursal no existe.", estado_http=422)
 
-    instante = validar_carga_diferida(sesion, None, fecha_hora) or datetime.now(timezone.utc)
+    instante = validar_carga_diferida(sesion, None, fecha_hora)
     unidad = UnidadDemo(
         vin=vin,
         patente=patente,
@@ -123,12 +128,14 @@ def alta_unidad(
         id_sucursal=id_sucursal,
         km_actual=km_inicial,
         km_proximo_service=None,
-        fecha_alta=instante,
-        fecha_limite_rotacion=fecha_limite_rotacion(sesion, circuito, instante),
+        fecha_alta=datetime.now(timezone.utc),
+        fecha_limite_rotacion=None,
     )
     sesion.add(unidad)
     sesion.flush()
-    estados.transicionar(
+    # carga_diferida debe reflejar si el llamante envio fecha_hora: se pasa el
+    # instante validado (o None) y la fecha del alta se toma del evento resultante.
+    evento = estados.transicionar(
         sesion,
         unidad,
         estados.TipoEvento.ALTA,
@@ -137,6 +144,8 @@ def alta_unidad(
         datos={"modelo": modelo, "version": version, "km_inicial": km_inicial},
         fecha_hora=instante,
     )
+    unidad.fecha_alta = evento.fecha_hora
+    unidad.fecha_limite_rotacion = fecha_limite_rotacion(sesion, circuito, evento.fecha_hora)
     auditar(sesion, id_usuario=getattr(usuario, "id", None), accion="ALTA_UNIDAD", recurso=f"unidad:{unidad.id}", ip=None, resultado="EXITO")
     return unidad
 
@@ -187,7 +196,7 @@ def asignar(
     id_sucursal: str,
     usuario: Any,
     reasignacion: bool = False,
-    origen: estados.Origen = estados.Origen.API,
+    origen: estados.Origen = estados.Origen.WEB,
     fecha_hora: Optional[datetime] = None,
 ) -> tuple[UnidadDemo, EventoUnidad]:
     """HU-03: asignacion desde DISPONIBLE o reasignacion desde ASIGNADA (cierra la anterior)."""
@@ -230,7 +239,7 @@ def liberar(
     *,
     usuario: Any,
     motivo: Optional[str] = None,
-    origen: estados.Origen = estados.Origen.API,
+    origen: estados.Origen = estados.Origen.WEB,
     fecha_hora: Optional[datetime] = None,
 ) -> tuple[UnidadDemo, EventoUnidad]:
     """HU-03.5: cierra la asignacion vigente y la unidad vuelve a DISPONIBLE."""
@@ -252,7 +261,7 @@ def service_ingreso(
     *,
     usuario: Any,
     observaciones: Optional[str] = None,
-    origen: estados.Origen = estados.Origen.API,
+    origen: estados.Origen = estados.Origen.WEB,
     fecha_hora: Optional[datetime] = None,
 ) -> tuple[UnidadDemo, EventoUnidad]:
     """HU-07.5: DISPONIBLE -> EN_SERVICE."""
@@ -274,7 +283,7 @@ def service_fin(
     km: int,
     proximo_service_km: Optional[int],
     usuario: Any,
-    origen: estados.Origen = estados.Origen.API,
+    origen: estados.Origen = estados.Origen.WEB,
     fecha_hora: Optional[datetime] = None,
 ) -> tuple[UnidadDemo, EventoUnidad]:
     """HU-07.5: EN_SERVICE -> DISPONIBLE actualizando km y proximo service.

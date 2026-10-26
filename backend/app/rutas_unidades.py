@@ -79,7 +79,7 @@ def crear_unidad(
             id_sucursal=datos.id_sucursal,
             km_inicial=datos.km_inicial,
             usuario=usuario,
-            origen=estados.Origen.API,
+            origen=estados.Origen.WEB,
             fecha_hora=datos.fecha_hora,
         )
     ultimo = service.historial_eventos(sesion, unidad.id)[0]

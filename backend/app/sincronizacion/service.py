@@ -17,7 +17,7 @@ from typing import Any, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core import auditoria, logs
+from app.core import auditoria, estados, logs
 from app.core.config import settings
 from app.identidad.models import Rol, Usuario
 from app.sincronizacion.dms import DMSAdapter, ErrorDMS
@@ -115,7 +115,7 @@ def sincronizar(sesion: Session, adaptador: DMSAdapter, usuario: Any, *, fallar:
                 id_sucursal=uni.id_sucursal,
                 km_inicial=uni.km_actual,
                 usuario=admin,
-                origen="DMS",  # type: ignore[arg-type]
+                origen=estados.Origen.DMS,
             )
             resultado.unidades_alta += 1
         except Exception as exc:  # duplicado u otra regla: se omite y sigue el ciclo

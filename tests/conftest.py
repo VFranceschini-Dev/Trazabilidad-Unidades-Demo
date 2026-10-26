@@ -57,6 +57,25 @@ def bd_test() -> Iterator[dict[str, str]]:
     with dueno_mant.connect() as conn:
         conn.execute(text(f"ALTER ROLE {APP_USUARIO} WITH LOGIN PASSWORD '{clave_sql}'"))
     dueno_mant.dispose()
+    # Mismos permisos que produccion: los privilegios por defecto (equivalentes a
+    # init_db_roles.sh) se otorgan ANTES de migrar; la migracion 0002 revoca UPDATE y
+    # DELETE sobre evento_unidad y otorga el uso de secuencias.
+    dueno = create_engine(URL_DUENO_TEST, isolation_level="AUTOCOMMIT")
+    with dueno.connect() as conn:
+        conn.execute(text(f"GRANT USAGE ON SCHEMA public TO {APP_USUARIO}"))
+        conn.execute(
+            text(
+                f"ALTER DEFAULT PRIVILEGES IN SCHEMA public"
+                f" GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {APP_USUARIO}"
+            )
+        )
+        conn.execute(
+            text(
+                f"ALTER DEFAULT PRIVILEGES IN SCHEMA public"
+                f" GRANT USAGE, SELECT ON SEQUENCES TO {APP_USUARIO}"
+            )
+        )
+    dueno.dispose()
     entorno = dict(
         os.environ,
         DATABASE_URL=URL_APP_TEST,
@@ -68,15 +87,6 @@ def bd_test() -> Iterator[dict[str, str]]:
         env=entorno,
         check=True,
     )
-    dueno = create_engine(URL_DUENO_TEST, isolation_level="AUTOCOMMIT")
-    with dueno.connect() as conn:
-        conn.execute(text(f"GRANT CONNECT ON DATABASE {BD_TEST} TO {APP_USUARIO}"))
-        conn.execute(text(f"GRANT USAGE ON SCHEMA public TO {APP_USUARIO}"))
-        conn.execute(
-            text(f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {APP_USUARIO}")
-        )
-        conn.execute(text(f"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {APP_USUARIO}"))
-    dueno.dispose()
     yield {"dueno": URL_DUENO_TEST, "app": URL_APP_TEST}
     _eliminar_base()
 
@@ -104,6 +114,24 @@ def sesion(fabrica_sesion: sessionmaker[Session]) -> Iterator[Session]:
 
 
 @pytest.fixture(scope="session")
+def motor_dueno(bd_test: dict[str, str]) -> Iterator[Engine]:
+    """Motor con el rol dueno: permite intentar modificaciones que el trigger rechaza
+    (el rol de aplicacion ya no tiene UPDATE ni DELETE sobre evento_unidad)."""
+    motor = create_engine(bd_test["dueno"], pool_pre_ping=True)
+    yield motor
+    motor.dispose()
+
+
+@pytest.fixture()
+def sesion_dueno(motor_dueno: Engine) -> Iterator[Session]:
+    ses = sessionmaker(bind=motor_dueno, expire_on_commit=False, autoflush=False)()
+    try:
+        yield ses
+    finally:
+        ses.close()
+
+
+@pytest.fixture(scope="session")
 def client(bd_test: dict[str, str]):
     """Cliente HTTP de la API real (FastAPI) contra la base de pruebas."""
     from fastapi.testclient import TestClient
@@ -112,3 +140,67 @@ def client(bd_test: dict[str, str]):
 
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture(scope="session")
+def hash_pruebas() -> str:
+    """Hash bcrypt unico para todos los usuarios de prueba (costo 12, se calcula una vez)."""
+    from app.core.seguridad import hash_clave
+
+    return hash_clave("Demo-Pruebas-2026!")
+
+
+@pytest.fixture(scope="session")
+def base(fabrica_sesion: sessionmaker[Session], hash_pruebas: str):
+    """Datos base de la sesion: sedes, parametros y un usuario por rol de prueba."""
+    from types import SimpleNamespace
+
+    from app.identidad.models import Rol, Usuario
+    from app.tablas_generales.models import Parametro, Sucursal
+
+    ses = fabrica_sesion()
+    for codigo, nombre in (
+        ("SC01", "Casa Central"),
+        ("SC02", "Formosa"),
+        ("SC03", "Sáenz Peña"),
+        ("SC04", "División Usados"),
+    ):
+        ses.add(Sucursal(codigo=codigo, nombre=nombre))
+    # Sin relationship() el flush no ordena los inserts por FK: las sedes deben
+    # existir antes del insert por lote de usuario.
+    ses.flush()
+    for clave, circuito, valor in (
+        ("plazo_rotacion_meses", "COMERCIAL", "6"),
+        ("plazo_rotacion_meses", "POSVENTA", "12"),
+        ("service_intervalo_km", None, "10000"),
+        ("aviso_service_km", None, "500"),
+        ("umbral_ocr", None, "80"),
+        ("aviso_multa_dias", None, "5"),
+        ("duracion_token_horas", None, "8"),
+        ("intentos_maximos", None, "5"),
+    ):
+        ses.add(Parametro(clave=clave, valor=valor, circuito=circuito))
+    usuarios = {}
+    for legajo, correo, rol, sucursal in (
+        ("1001", "admin@pruebas.local", Rol.ADMIN, "SC01"),
+        ("1002", "mkt@pruebas.local", Rol.RESP_MKT_VENTAS, "SC01"),
+        ("1003", "asesor@pruebas.local", Rol.ASESOR, "SC01"),
+        ("1004", "posventa@pruebas.local", Rol.RESP_POSVENTA, "SC01"),
+        ("1005", "inactivo@pruebas.local", Rol.ASESOR, "SC01"),
+        ("1006", "asesor2@pruebas.local", Rol.ASESOR, "SC02"),
+    ):
+        usuario = Usuario(
+            legajo=legajo,
+            correo=correo,
+            nombre=f"Prueba {legajo}",
+            rol=rol,
+            id_sucursal=sucursal,
+            hash_clave=hash_pruebas,
+            activo=legajo != "1005",
+        )
+        ses.add(usuario)
+        usuarios[correo.split("@")[0]] = usuario
+    ses.commit()
+    datos = SimpleNamespace(**usuarios)
+    yield datos
+    ses.close()
