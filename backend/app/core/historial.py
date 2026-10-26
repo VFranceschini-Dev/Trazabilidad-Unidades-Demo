@@ -123,7 +123,10 @@ def responsable_vigente(sesion: Session, id_unidad: int, instante: datetime) -> 
             )
         ).all()
         if not cierres:
-            responsable_id = asg.id_usuario if asg.id_usuario is not None else (asg.datos or {}).get("id_responsable")
+            # En ASIGNACION/REASIGNACION el responsable viaja en datos.id_responsable;
+            # id_usuario es quien registro el evento, no quien responde por la unidad.
+            datos_asg = asg.datos or {}
+            responsable_id = datos_asg.get("id_responsable") or asg.id_usuario
             if responsable_id is not None:
                 usuario = sesion.get(_modelo_usuario(), int(responsable_id))
                 return Responsable(
