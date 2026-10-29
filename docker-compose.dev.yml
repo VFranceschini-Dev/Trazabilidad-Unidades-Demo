@@ -1,0 +1,23 @@
+# Modo desarrollo: monta el codigo fuente y recarga al guardar.
+# Uso: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db api web dms
+# Web en http://localhost:8501 y API en http://localhost:8000/api/v1/docs (sin Nginx ni certificado).
+# En Windows los cambios de archivos no llegan como eventos al contenedor: se usa sondeo (polling).
+
+services:
+  api:
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /srv/backend/app"
+    environment:
+      WATCHFILES_FORCE_POLLING: "true"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./backend:/srv/backend
+
+  web:
+    command: >
+      streamlit run app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true
+      --server.runOnSave=true --server.fileWatcherType=poll
+    ports:
+      - "127.0.0.1:8501:8501"
+    volumes:
+      - ./frontend:/srv

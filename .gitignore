@@ -19,3 +19,7 @@ venv/
 *.swo
 .DS_Store
 Thumbs.db
+
+# Certificado autofirmado local (incluye clave privada) y configuracion local de Qwen
+nginx/certs/
+.qwen/
