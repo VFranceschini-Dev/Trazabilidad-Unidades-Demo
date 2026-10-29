@@ -9,6 +9,11 @@ from zoneinfo import ZoneInfo
 import streamlit as st
 
 ESTILOS_RUTA = Path(__file__).resolve().parent.parent / "estilos.css"
+RECURSOS = Path(__file__).resolve().parent.parent / "recursos"
+# Logo de la concesionaria (último cuadro de logo-donnet-animado.gif de donnet.com.ar,
+# con fondo transparente) y favicon con la "D" del logo.
+LOGO_RUTA = str(RECURSOS / "logo-donnet.png")
+FAVICON_RUTA = str(RECURSOS / "favicon-donnet.png")
 
 CHIPS = {
     "DISPONIBLE": ("DISPONIBLE", "verde"),
@@ -24,6 +29,16 @@ CHIPS = {
 def inyectar_estilos() -> None:
     if ESTILOS_RUTA.exists():
         st.markdown(f"<style>{ESTILOS_RUTA.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
+
+
+def logo_ingreso() -> None:
+    """Logo sobre el título en las pantallas de ingreso (P1 y P2)."""
+    st.image(LOGO_RUTA, width=176)
+
+
+def logo_lateral() -> None:
+    """Logo arriba de la barra lateral (o arriba a la izquierda si la página no tiene barra)."""
+    st.logo(LOGO_RUTA)
 
 
 def chip_estado(estado: str) -> str:

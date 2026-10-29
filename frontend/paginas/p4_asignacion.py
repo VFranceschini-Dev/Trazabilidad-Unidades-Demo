@@ -10,10 +10,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import streamlit as st  # noqa: E402
 
 from cliente_api import SesionVencida, detalle_error, get, post  # noqa: E402
-from componentes.ui import chip_estado, inyectar_estilos  # noqa: E402
+from componentes.ui import FAVICON_RUTA, chip_estado, inyectar_estilos, logo_lateral  # noqa: E402
 
-st.set_page_config(page_title="Asignación — Parque Demo", layout="wide")
+st.set_page_config(page_title="Asignación — Parque Demo", layout="wide", page_icon=FAVICON_RUTA)
 inyectar_estilos()
+logo_lateral()
 
 if not st.session_state.get("token"):
     st.switch_page("paginas/p1_inicio_sesion.py")
