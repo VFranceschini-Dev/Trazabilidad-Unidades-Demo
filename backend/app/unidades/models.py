@@ -12,6 +12,7 @@ from sqlalchemy import (
     Boolean,
     CHAR,
     DateTime,
+    Enum as SAEnum,
     ForeignKey,
     Index,
     Integer,
@@ -38,7 +39,8 @@ class UnidadDemo(Base):
     patente: Mapped[str] = mapped_column(String(10), unique=True, index=True)
     modelo: Mapped[str] = mapped_column(String(60))
     version: Mapped[str] = mapped_column(String(80))
-    circuito: Mapped[Circuito] = mapped_column(String(20), index=True)
+    # VARCHAR en la base; SAEnum convierte al leer para que unidad.circuito sea Circuito y no str
+    circuito: Mapped[Circuito] = mapped_column(SAEnum(Circuito, native_enum=False, length=20), index=True)
     estado_actual: Mapped[str] = mapped_column(String(20), default="DISPONIBLE", index=True)
     id_sucursal: Mapped[str] = mapped_column(String(10), ForeignKey("sucursal.codigo"))
     km_actual: Mapped[int] = mapped_column(Integer, default=0)

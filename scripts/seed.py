@@ -7,6 +7,7 @@ directos). Reejecutable: si algo ya existe, no lo duplica. Datos ficticios (Ley 
 from __future__ import annotations
 
 import os
+import secrets
 import sys
 from datetime import datetime, timedelta, timezone
 
@@ -41,16 +42,14 @@ PARAMETROS = [
 ]
 
 USUARIOS = [
-    # legajo, correo, nombre, rol, sucursal, variable de entorno con la clave de demo
-    ("1001", "admin@demo.local", "Ana Administradora", Rol.ADMIN, "SC01", "DEMO_PASSWORD_ADMIN"),
-    ("1002", "mkt@demo.local", "Marta Marketing", Rol.RESP_MKT_VENTAS, "SC01", "DEMO_PASSWORD_MARKETING"),
-    ("1003", "asesor@demo.local", "Alberto Asesor", Rol.ASESOR, "SC02", "DEMO_PASSWORD_ASESOR"),
-    ("1004", "posventa@demo.local", "Paula Posventa", Rol.RESP_POSVENTA, "SC01", "DEMO_PASSWORD_POSVENTA"),
-    ("1005", "taller@demo.local", "Tomas Taller", Rol.TECNICO_TALLER, "SC03", "DEMO_PASSWORD_TALLER"),
-    ("1006", "usados@demo.local", "Uriel Usados", Rol.RESP_USADOS, "SC04", "DEMO_PASSWORD_USADOS"),
+    # legajo, correo, nombre, rol, sucursal, variable de entorno con la clave, clave temporal del README
+    ("1001", "admin@demo.local", "Ana Administradora", Rol.ADMIN, "SC01", "DEMO_PASSWORD_ADMIN", "DemoAdmin2026!"),
+    ("1002", "mkt@demo.local", "Marta Marketing", Rol.RESP_MKT_VENTAS, "SC01", "DEMO_PASSWORD_MARKETING", "DemoMkt2026!"),
+    ("1003", "asesor@demo.local", "Alberto Asesor", Rol.ASESOR, "SC02", "DEMO_PASSWORD_ASESOR", "DemoAsesor2026!"),
+    ("1004", "posventa@demo.local", "Paula Posventa", Rol.RESP_POSVENTA, "SC01", "DEMO_PASSWORD_POSVENTA", "DemoPosventa2026!"),
+    ("1005", "taller@demo.local", "Tomas Taller", Rol.TECNICO_TALLER, "SC03", "DEMO_PASSWORD_TALLER", "DemoTaller2026!"),
+    ("1006", "usados@demo.local", "Uriel Usados", Rol.RESP_USADOS, "SC04", "DEMO_PASSWORD_USADOS", "DemoUsados2026!"),
 ]
-
-CLAVE_SIN_CLAVE = hash_clave(os.environ.get("DEMO_PASSWORD_ADMIN", "DemoAdmin2026!"))
 
 # 15 unidades Ford del mercado argentino, repartidas entre circuitos
 UNIDADES = [
@@ -94,9 +93,9 @@ def sembrar() -> None:
             if existe is None:
                 sesion.add(Parametro(clave=clave, valor=valor, circuito=circuito, id_sucursal=id_sucursal))
 
-        for legajo, correo, nombre, rol, sucursal, var_env in USUARIOS:
+        for legajo, correo, nombre, rol, sucursal, var_env, clave_readme in USUARIOS:
             if sesion.scalar(select(Usuario).where(Usuario.correo == correo)) is None:
-                clave = os.environ.get(var_env, "Demo2026Segura!")
+                clave = os.environ.get(var_env) or clave_readme
                 sesion.add(
                     Usuario(
                         legajo=legajo,
@@ -108,7 +107,7 @@ def sembrar() -> None:
                         debe_cambiar_clave=True,
                     )
                 )
-        # usuario tecnico n8n: autenticado solo por API key (sin clave util)
+        # usuario tecnico n8n: autenticado solo por API key; clave aleatoria que nadie conoce
         if sesion.scalar(select(Usuario).where(Usuario.legajo == "9000")) is None:
             sesion.add(
                 Usuario(
@@ -117,7 +116,7 @@ def sembrar() -> None:
                     nombre="Usuario Técnico n8n",
                     rol=Rol.TECNICO,
                     id_sucursal="SC01",
-                    hash_clave=CLAVE_SIN_CLAVE,
+                    hash_clave=hash_clave(secrets.token_urlsafe(32)),
                     debe_cambiar_clave=False,
                 )
             )

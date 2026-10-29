@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -30,7 +30,8 @@ class Usuario(Base):
     legajo: Mapped[str] = mapped_column(String(20), unique=True, index=True)
     correo: Mapped[str] = mapped_column(String(120), unique=True, index=True)
     nombre: Mapped[str] = mapped_column(String(120))
-    rol: Mapped[Rol] = mapped_column(String(30), default=Rol.ASESOR)
+    # VARCHAR en la base; SAEnum convierte al leer para que usuario.rol sea Rol y no str
+    rol: Mapped[Rol] = mapped_column(SAEnum(Rol, native_enum=False, length=30), default=Rol.ASESOR)
     id_sucursal: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     hash_clave: Mapped[str] = mapped_column(String(120))
