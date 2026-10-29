@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Generator
 
 import jwt
-from fastapi import Depends, Header, HTTPException, Request
+from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from passlib.context import CryptContext
 from sqlalchemy import select, update
@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.db import get_session
-from app.core.excepciones import SinPermiso
+from app.core.excepciones import ErrorDominio, SinPermiso
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
 _bearer = HTTPBearer(auto_error=False)
@@ -70,9 +70,11 @@ def validar_politica_clave(clave: str, *, correo: str = "", nombre: str = "") ->
     if bajo in _comunes():
         errores.append("es una de las contraseñas mas comunes")
     if errores:
-        raise HTTPException(
-            status_code=422,
-            detail={"codigo": "CLAVE_DEBIL", "mensaje": "La contraseña no cumple la política.", "detalle": errores},
+        raise ErrorDominio(
+            codigo="CLAVE_DEBIL",
+            mensaje="La contraseña no cumple la política.",
+            detalle=errores,
+            estado_http=422,
         )
 
 
@@ -91,14 +93,18 @@ def decodificar_token(token: str) -> dict[str, Any]:
     try:
         return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algoritmo])
     except jwt.ExpiredSignatureError as exc:
-        raise HTTPException(
-            status_code=401,
-            detail={"codigo": "TOKEN_VENCIDO", "mensaje": "La sesión venció. Ingrese nuevamente.", "detalle": None},
+        raise ErrorDominio(
+            codigo="TOKEN_VENCIDO",
+            mensaje="La sesión venció. Ingrese nuevamente.",
+            detalle=None,
+            estado_http=401,
         ) from exc
     except jwt.InvalidTokenError as exc:
-        raise HTTPException(
-            status_code=401,
-            detail={"codigo": "TOKEN_INVALIDO", "mensaje": "Token inválido.", "detalle": None},
+        raise ErrorDominio(
+            codigo="TOKEN_INVALIDO",
+            mensaje="Token inválido.",
+            detalle=None,
+            estado_http=401,
         ) from exc
 
 
@@ -108,9 +114,11 @@ def _usuario_autenticado(sesion: Session, token: str) -> Any:
     datos = decodificar_token(token)
     usuario = sesion.get(Usuario, int(datos["sub"]))
     if usuario is None or not usuario.activo:
-        raise HTTPException(
-            status_code=401,
-            detail={"codigo": "USUARIO_INVALIDO", "mensaje": "El usuario no está activo.", "detalle": None},
+        raise ErrorDominio(
+            codigo="USUARIO_INVALIDO",
+            mensaje="El usuario no está activo.",
+            detalle=None,
+            estado_http=401,
         )
     ahora = datetime.now(timezone.utc)
     limite = ahora - timedelta(minutes=settings.sesion_inactiva_minutos)
@@ -118,9 +126,11 @@ def _usuario_autenticado(sesion: Session, token: str) -> Any:
     if ultima is not None and ultima.tzinfo is None:
         ultima = ultima.replace(tzinfo=timezone.utc)
     if ultima is not None and ultima < limite:
-        raise HTTPException(
-            status_code=401,
-            detail={"codigo": "SESION_INACTIVA", "mensaje": "La sesión cerró por inactividad.", "detalle": None},
+        raise ErrorDominio(
+            codigo="SESION_INACTIVA",
+            mensaje="La sesión cerró por inactividad.",
+            detalle=None,
+            estado_http=401,
         )
     sesion.execute(update(Usuario).where(Usuario.id == usuario.id).values(ultima_actividad=ahora))
     sesion.commit()
@@ -132,9 +142,11 @@ def obtener_usuario(
     sesion: Session = Depends(get_session),
 ) -> Any:
     if credenciales is None:
-        raise HTTPException(
-            status_code=401,
-            detail={"codigo": "SIN_TOKEN", "mensaje": "Falta el token de acceso.", "detalle": None},
+        raise ErrorDominio(
+            codigo="SIN_TOKEN",
+            mensaje="Falta el token de acceso.",
+            detalle=None,
+            estado_http=401,
         )
     return _usuario_autenticado(sesion, credenciales.credentials)
 
@@ -153,9 +165,11 @@ def requerir_rol(*roles: str) -> Any:
 def verificar_api_key_n8n(x_api_key: str = Header(default="")) -> None:
     """Acceso del usuario técnico de n8n: API key por cabecera, limitado a la ingesta."""
     if x_api_key != settings.n8n_api_key:
-        raise HTTPException(
-            status_code=401,
-            detail={"codigo": "API_KEY_INVALIDA", "mensaje": "API key incorrecta.", "detalle": None},
+        raise ErrorDominio(
+            codigo="API_KEY_INVALIDA",
+            mensaje="API key incorrecta.",
+            detalle=None,
+            estado_http=401,
         )
 
 

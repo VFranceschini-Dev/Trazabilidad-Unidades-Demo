@@ -5,12 +5,12 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core import auditoria, seguridad
 from app.core.config import settings
+from app.core.excepciones import ErrorDominio
 from app.identidad.models import Rol, Usuario
 
 
@@ -35,20 +35,15 @@ def ingresar(sesion: Session, correo: str, clave: str, ip: Optional[str], reques
         # HU-01.4 y no-existente: mismo mensaje generico, sin revelar cual dato fallo
         auditoria.registrar(sesion, id_usuario=None, accion="LOGIN_FALLIDO", recurso="auth", ip=ip, resultado="FRACASO")
         sesion.commit()
-        raise HTTPException(
-            status_code=401,
-            detail=auditoria_error("Usuario o contraseña incorrectos.", None),
-        )
+        raise credenciales_invalidas("Usuario o contraseña incorrectos.")
 
     if bloqueado_hasta(usuario):
         restante = int((usuario.bloqueado_hasta - _ahora()).total_seconds() // 60) + 1
-        raise HTTPException(
-            status_code=423,
-            detail={
-                "codigo": "CUENTA_BLOQUEADA",
-                "mensaje": f"Usuario o contraseña incorrectos. La cuenta está bloqueada por 15 minutos por intentos fallidos ({restante} min restantes).",
-                "detalle": {"bloqueado_hasta": usuario.bloqueado_hasta.isoformat()},
-            },
+        raise ErrorDominio(
+            codigo="CUENTA_BLOQUEADA",
+            mensaje=f"Usuario o contraseña incorrectos. La cuenta está bloqueada por 15 minutos por intentos fallidos ({restante} min restantes).",
+            detalle={"bloqueado_hasta": usuario.bloqueado_hasta.isoformat()},
+            estado_http=423,
         )
 
     if not seguridad.verificar_clave(clave, usuario.hash_clave):
@@ -60,14 +55,20 @@ def ingresar(sesion: Session, correo: str, clave: str, ip: Optional[str], reques
             detalle_extra = "La cuenta quedó bloqueada por 15 minutos."
         auditoria.registrar(sesion, id_usuario=usuario.id, accion="LOGIN_FALLIDO", recurso="auth", ip=ip, resultado="FRACASO")
         sesion.commit()
-        raise HTTPException(
-            status_code=401,
-            detail=auditoria_error(
-                f"Usuario o contraseña incorrectos (intento {usuario.intentos_fallidos + 1} de {settings.intentos_maximos})."
-                if detalle_extra is None
-                else f"Usuario o contraseña incorrectos. {detalle_extra}",
-                None,
-            ),
+        raise credenciales_invalidas(
+            f"Usuario o contraseña incorrectos (intento {usuario.intentos_fallidos} de {settings.intentos_maximos})."
+            if detalle_extra is None
+            else f"Usuario o contraseña incorrectos. {detalle_extra}"
+        )
+
+    if usuario.clave_temporal_hasta is not None and usuario.clave_temporal_hasta < _ahora():
+        # HU-01: la clave temporal de recuperacion vale 48 h; vencida, hay que pedir otra
+        auditoria.registrar(sesion, id_usuario=usuario.id, accion="LOGIN_FALLIDO", recurso="auth", ip=ip, resultado="FRACASO")
+        sesion.commit()
+        raise ErrorDominio(
+            codigo="CLAVE_TEMPORAL_VENCIDA",
+            mensaje="La contraseña temporal venció. Solicite una nueva con «¿Olvidó su contraseña?».",
+            estado_http=401,
         )
 
     usuario.intentos_fallidos = 0
@@ -83,8 +84,8 @@ def ingresar(sesion: Session, correo: str, clave: str, ip: Optional[str], reques
     }
 
 
-def auditoria_error(mensaje: str, detalle: Any) -> dict[str, Any]:
-    return {"codigo": "CREDENCIALES_INVALIDAS", "mensaje": mensaje, "detalle": detalle}
+def credenciales_invalidas(mensaje: str) -> ErrorDominio:
+    return ErrorDominio(codigo="CREDENCIALES_INVALIDAS", mensaje=mensaje, estado_http=401)
 
 
 def cambiar_clave(sesion: Session, usuario: Usuario, clave_nueva: str, ip: Optional[str]) -> None:

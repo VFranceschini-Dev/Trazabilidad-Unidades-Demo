@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core import auditoria
@@ -57,7 +58,7 @@ def recuperar(datos: RecuperarIn, request: Request, sesion: Session = Depends(ge
 
 @router.get("/yo", response_model=YoOut)
 def yo(usuario=Depends(obtener_usuario), sesion: Session = Depends(get_session)) -> YoOut:
-    sucursal = sesion.scalar(Sucursal.__table__.select().where(Sucursal.codigo == usuario.id_sucursal)) if usuario.id_sucursal else None
+    sucursal = sesion.scalar(select(Sucursal).where(Sucursal.codigo == usuario.id_sucursal)) if usuario.id_sucursal else None
     return YoOut(
         usuario=UsuarioOut.model_validate(usuario),
         sucursal_nombre=sucursal.nombre if sucursal is not None else None,
