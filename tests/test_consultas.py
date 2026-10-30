@@ -116,3 +116,80 @@ def test_asignar_guarda_motivo_y_aparece_en_asignaciones(client, sesion, hash_pr
     ficha = client.get(f"/api/v1/unidades/{unidad['id']}", headers=cab).json()
     assert ficha["unidad"]["estado_actual"] == "ASIGNADA"
     assert ficha["responsable_actual"]["identificador"] == base.asesor.id
+
+
+def _unidad_asignada(client: Any, cab: dict[str, str], base: Any) -> dict[str, Any]:
+    unidad = _alta(client, cab)
+    r = client.post(
+        f"/api/v1/unidades/{unidad['id']}/asignaciones",
+        json={"id_responsable": base.asesor.id, "id_sucursal": "SC01"},
+        headers=cab,
+    )
+    assert r.status_code == 200, r.text
+    return unidad
+
+
+def test_reasignar_cierra_la_anterior_y_persiste(client, sesion, hash_pruebas, base) -> None:
+    cab = _cabeceras(client, sesion, hash_pruebas, Rol.RESP_MKT_VENTAS)
+    unidad = _unidad_asignada(client, cab, base)
+    r = client.post(
+        f"/api/v1/unidades/{unidad['id']}/reasignar",
+        json={"id_responsable": base.asesor2.id, "id_sucursal": "SC02"},
+        headers=cab,
+    )
+    assert r.status_code == 200, r.text
+    filas = client.get(f"/api/v1/unidades/{unidad['id']}/asignaciones", headers=cab).json()
+    assert [f["responsable_nombre"] for f in filas] == [base.asesor2.nombre, base.asesor.nombre]
+    assert filas[0]["fecha_hasta"] is None
+    assert filas[1]["fecha_hasta"] is not None
+    ficha = client.get(f"/api/v1/unidades/{unidad['id']}", headers=cab).json()
+    assert ficha["unidad"]["id_sucursal"] == "SC02"
+
+
+def test_liberar_vuelve_a_disponible_y_persiste(client, sesion, hash_pruebas, base) -> None:
+    cab = _cabeceras(client, sesion, hash_pruebas, Rol.RESP_MKT_VENTAS)
+    unidad = _unidad_asignada(client, cab, base)
+    assert client.post(f"/api/v1/unidades/{unidad['id']}/liberar", json={}, headers=cab).status_code == 200
+    ficha = client.get(f"/api/v1/unidades/{unidad['id']}", headers=cab).json()
+    assert ficha["unidad"]["estado_actual"] == "DISPONIBLE"
+    assert ficha["responsable_actual"] is None
+    filas = client.get(f"/api/v1/unidades/{unidad['id']}/asignaciones", headers=cab).json()
+    assert filas[0]["fecha_hasta"] is not None
+
+
+def test_ingreso_y_fin_de_service_persisten(client, sesion, hash_pruebas, base) -> None:
+    cab = _cabeceras(client, sesion, hash_pruebas, Rol.RESP_MKT_VENTAS)
+    unidad = _alta(client, cab)
+    ruta = f"/api/v1/unidades/{unidad['id']}"
+    assert client.post(f"{ruta}/service/ingreso", json={}, headers=cab).status_code == 200
+    assert client.get(ruta, headers=cab).json()["unidad"]["estado_actual"] == "EN_SERVICE"
+    r = client.post(f"{ruta}/service/fin", json={"km": 900, "proximo_service_km": 10900}, headers=cab)
+    assert r.status_code == 200, r.text
+    datos = client.get(ruta, headers=cab).json()["unidad"]
+    assert (datos["estado_actual"], datos["km_actual"], datos["km_proximo_service"]) == ("DISPONIBLE", 900, 10900)
+
+
+def test_operacion_rechazada_no_deja_rastros(client, sesion, hash_pruebas, base) -> None:
+    """Responsable de otra sucursal (HU-03.3): 409 y la unidad sigue DISPONIBLE, sin evento."""
+    cab = _cabeceras(client, sesion, hash_pruebas, Rol.RESP_MKT_VENTAS)
+    unidad = _alta(client, cab)
+    r = client.post(
+        f"/api/v1/unidades/{unidad['id']}/asignaciones",
+        json={"id_responsable": base.asesor2.id, "id_sucursal": "SC01"},
+        headers=cab,
+    )
+    assert r.status_code == 409
+    assert r.json()["detalle"]["estado_actual"] == "DISPONIBLE"
+    eventos = client.get(f"/api/v1/unidades/{unidad['id']}/historial", headers=cab).json()["eventos"]
+    assert [e["tipo_evento"] for e in eventos] == ["ALTA"]
+
+
+def test_asesor_no_puede_asignar_ni_liberar(client, sesion, hash_pruebas, base) -> None:
+    cab_mkt = _cabeceras(client, sesion, hash_pruebas, Rol.RESP_MKT_VENTAS)
+    unidad = _alta(client, cab_mkt)
+    cab = _cabeceras(client, sesion, hash_pruebas, Rol.ASESOR)
+    for ruta, cuerpo in (
+        ("asignaciones", {"id_responsable": base.asesor.id, "id_sucursal": "SC01"}),
+        ("liberar", {}),
+    ):
+        assert client.post(f"/api/v1/unidades/{unidad['id']}/{ruta}", json=cuerpo, headers=cab).status_code == 403

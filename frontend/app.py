@@ -6,7 +6,19 @@ El menú lateral automático queda oculto; cada página maneja su propia navegac
 llama a st.set_page_config e inyectar_estilos.
 """
 
+import os
+import sys
+
 import streamlit as st
+
+if os.environ.get("RECARGA_DESARROLLO"):
+    # Streamlit solo invalida su cache de paginas y modulos si hay una sesion conectada al
+    # guardar: lo editado con la app cerrada seguiria viejo. Solo en docker-compose.dev.yml.
+    from streamlit.runtime import Runtime
+
+    Runtime.instance()._script_cache.clear()
+    for modulo in [m for m in sys.modules if m == "cliente_api" or m.split(".")[0] == "componentes"]:
+        del sys.modules[modulo]
 
 PAGINAS = [
     st.Page("paginas/p1_inicio_sesion.py", title="Ingreso", default=True),

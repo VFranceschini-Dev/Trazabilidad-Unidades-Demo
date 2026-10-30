@@ -14,6 +14,8 @@ services:
       - ./backend:/srv/backend
 
   web:
+    environment:
+      RECARGA_DESARROLLO: "1"
     command: >
       streamlit run app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true
       --server.runOnSave=true --server.fileWatcherType=poll

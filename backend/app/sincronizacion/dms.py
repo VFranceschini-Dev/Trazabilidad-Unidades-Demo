@@ -50,12 +50,13 @@ class DMSAdapter(Protocol):
 class DMSDesdeHTTP:
     """Cliente del DMS simulado; `?fallar=1` permite probar HU-15.3 a pedido."""
 
-    def __init__(self, base_url: str | None = None) -> None:
+    def __init__(self, base_url: str | None = None, *, fallar: bool = False) -> None:
         self.base_url = (base_url or settings.dms_api_url).rstrip("/")
+        self.fallar = fallar
 
-    def _get(self, ruta: str, fallar: bool = False) -> list[dict[str, object]]:
+    def _get(self, ruta: str) -> list[dict[str, object]]:
         url = f"{self.base_url}{ruta}"
-        if fallar:
+        if self.fallar:
             url += "?fallar=1"
         try:
             respuesta = httpx.get(url, timeout=10)
@@ -64,8 +65,8 @@ class DMSDesdeHTTP:
         except (httpx.HTTPError, ValueError) as exc:
             raise ErrorDMS(f"No se pudo comunicar con el DMS: {exc}") from exc
 
-    def traer_empleados(self, *, fallar: bool = False) -> list[EmpleadoDMS]:
-        filas = self._get("/empleados", fallar)
+    def traer_empleados(self) -> list[EmpleadoDMS]:
+        filas = self._get("/empleados")
         return [
             EmpleadoDMS(
                 legajo=str(f["legajo"]),
@@ -78,8 +79,8 @@ class DMSDesdeHTTP:
             for f in filas
         ]
 
-    def traer_unidades(self, *, fallar: bool = False) -> list[UnidadDMS]:
-        filas = self._get("/unidades", fallar)
+    def traer_unidades(self) -> list[UnidadDMS]:
+        filas = self._get("/unidades")
         return [
             UnidadDMS(
                 vin=str(f["vin"]).upper(),

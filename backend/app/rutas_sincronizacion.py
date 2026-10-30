@@ -22,12 +22,12 @@ def sync_dms(
     usuario: Any = Depends(requerir_rol(Rol.ADMIN.value)),
     sesion: Session = Depends(get_session),
 ) -> dict[str, Any]:
-    resultado = sincronizar(sesion, DMSDesdeHTTP(), usuario, fallar=fallar)
+    resultado = sincronizar(sesion, DMSDesdeHTTP(fallar=fallar), usuario)
     return {
         "creados": resultado.creados,
         "actualizados": resultado.actualizados,
         "dados_de_baja": resultado.dados_de_baja,
         "unidades_alta": resultado.unidades_alta,
-        "unidades_omitidas": resultado.unidades_omitas,
+        "unidades_omitidas": resultado.unidades_omitidas,
         "error": resultado.error,
     }
