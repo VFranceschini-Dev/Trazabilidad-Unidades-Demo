@@ -23,6 +23,7 @@ from app.core.config import settings
 from app.core.db import SessionLocal
 from app.core.excepciones import ErrorDominio
 from app.rutas_auth import router as router_auth
+from app.rutas_catalogos import router as router_catalogos
 from app.rutas_sincronizacion import router as router_sync
 from app.rutas_unidades import router as router_unidades
 from app.sincronizacion.dms import DMSDesdeHTTP
@@ -77,6 +78,7 @@ def _router_salud() -> APIRouter:
 v1 = APIRouter(prefix="/api/v1")
 v1.include_router(_router_salud())
 v1.include_router(router_auth)
+v1.include_router(router_catalogos)
 v1.include_router(router_unidades)
 v1.include_router(router_sync)
 

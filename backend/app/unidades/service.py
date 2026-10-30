@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core import estados
@@ -87,6 +87,7 @@ def alta_unidad(
     id_sucursal: str,
     km_inicial: int,
     usuario: Any,
+    km_proximo_service: Optional[int] = None,
     origen: estados.Origen = estados.Origen.WEB,
     fecha_hora: Optional[datetime] = None,
     ip: Optional[str] = None,
@@ -128,7 +129,7 @@ def alta_unidad(
         estado_actual=estados.EstadoUnidad.DISPONIBLE.value,
         id_sucursal=id_sucursal,
         km_actual=km_inicial,
-        km_proximo_service=None,
+        km_proximo_service=km_proximo_service,
         fecha_alta=datetime.now(timezone.utc),
         fecha_limite_rotacion=None,
     )
@@ -197,6 +198,7 @@ def asignar(
     id_sucursal: str,
     usuario: Any,
     reasignacion: bool = False,
+    motivo: Optional[str] = None,
     origen: estados.Origen = estados.Origen.WEB,
     fecha_hora: Optional[datetime] = None,
     ip: Optional[str] = None,
@@ -224,7 +226,7 @@ def asignar(
 
     evento = estados.transicionar(
         sesion, unidad, evento_tipo, usuario, origen,
-        datos={"id_responsable": id_responsable, "id_sucursal": id_sucursal},
+        datos={"id_responsable": id_responsable, "id_sucursal": id_sucursal, **({"motivo": motivo} if motivo else {})},
         fecha_hora=instante,
         precondiciones=tuple(precondiciones),
     )
@@ -314,6 +316,48 @@ def service_fin(
         unidad.km_proximo_service = km + intervalo
     auditar(sesion, id_usuario=getattr(usuario, "id", None), accion="SERVICE_FIN", recurso=f"unidad:{unidad.id}", ip=ip, resultado="EXITO")
     return unidad, evento
+
+
+def listar_unidades(
+    sesion: Session,
+    *,
+    estados_unidad: Optional[list[str]] = None,
+    circuito: Optional[Circuito] = None,
+    texto: Optional[str] = None,
+) -> list[UnidadDemo]:
+    """Unidades por patente; `texto` busca por patente o VIN, sin distinguir mayusculas."""
+    consulta = select(UnidadDemo).order_by(UnidadDemo.patente)
+    if estados_unidad:
+        consulta = consulta.where(UnidadDemo.estado_actual.in_(estados_unidad))
+    if circuito is not None:
+        consulta = consulta.where(UnidadDemo.circuito == circuito)
+    if texto:
+        patron = f"%{texto.strip()}%"
+        consulta = consulta.where(or_(UnidadDemo.patente.ilike(patron), UnidadDemo.vin.ilike(patron)))
+    return list(sesion.scalars(consulta))
+
+
+def altas_recientes(sesion: Session, limite: int = 5) -> list[tuple[UnidadDemo, EventoUnidad]]:
+    """Ultimas altas, mas reciente primero, con su evento ALTA (fecha y origen)."""
+    filas = sesion.execute(
+        select(UnidadDemo, EventoUnidad)
+        .join(EventoUnidad, EventoUnidad.id_unidad == UnidadDemo.id)
+        .where(EventoUnidad.tipo_evento == estados.TipoEvento.ALTA.value)
+        .order_by(EventoUnidad.fecha_hora.desc(), EventoUnidad.id_evento.desc())
+        .limit(limite)
+    ).all()
+    return [(unidad, evento) for unidad, evento in filas]
+
+
+def asignaciones_de(sesion: Session, id_unidad: int) -> list[Asignacion]:
+    """Asignaciones de la unidad, la mas reciente primero."""
+    return list(
+        sesion.scalars(
+            select(Asignacion)
+            .where(Asignacion.id_unidad == id_unidad)
+            .order_by(Asignacion.fecha_desde.desc(), Asignacion.id.desc())
+        )
+    )
 
 
 def historial_eventos(sesion: Session, id_unidad: int) -> list[EventoUnidad]:

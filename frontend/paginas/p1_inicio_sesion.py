@@ -19,8 +19,8 @@ logo_ingreso()
 if st.session_state.get("token"):
     st.switch_page("paginas/p3_ficha_historial.py")
 
-st.markdown('<div class="sb-marca">Parque Demo</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitulo">Trazabilidad de unidades demo · Ingrese con su correo corporativo</div>', unsafe_allow_html=True)
+st.markdown('<div class="titulo-pagina">Parque Demo</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitulo">Plataforma de gestión y trazabilidad de unidades demo</div>', unsafe_allow_html=True)
 
 aviso = st.session_state.pop("aviso_sesion", None)
 if aviso:
@@ -41,8 +41,6 @@ if enviado:
             st.session_state["usuario"] = cuerpo["usuario"]
             if cuerpo.get("debe_cambiar_clave"):
                 st.switch_page("paginas/p2_cambio_clave.py")
-            elif cuerpo["usuario"]["rol"] == "ASESOR":
-                st.switch_page("paginas/p7_test_drive.py")
             else:
                 st.switch_page("paginas/p3_ficha_historial.py")
         elif estado == 423:

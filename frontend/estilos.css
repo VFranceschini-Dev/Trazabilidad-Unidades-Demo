@@ -53,3 +53,32 @@ div[data-testid="stAlert"] { border-left-width: 5px; border-radius: 8px; }
 /* Ocultar chrome de Streamlit */
 #MainMenu, footer, header[data-testid="stHeader"] { visibility: hidden; }
 
+/* Secciones, filas de datos y usuario del menu */
+.titulo-seccion { font-size: 1.1rem; font-weight: 700; color: #1F3864; margin-bottom: .6rem; }
+.fila-dato { display: flex; gap: 1rem; padding: .28rem 0; color: #1B2A41; }
+.fila-dato .rotulo { width: 42%; flex-shrink: 0; font-weight: 600; color: #4A5568; }
+[data-testid="stSidebar"] .sb-usuario { font-size: .82rem; color: #5B6B85; margin-bottom: .6rem; }
+
+/* Reglas verificadas: barra lateral verde, ambar, azul o roja */
+.regla { border-left: 5px solid; border-radius: 8px; padding: .55rem .85rem; margin-bottom: .5rem; font-size: .92rem; color: #1B2A41; }
+.regla-ok    { background: #E6F4EA; border-left-color: #1E7B34; }
+.regla-aviso { background: #FDF3DC; border-left-color: #D9A400; }
+.regla-info  { background: #E3ECF9; border-left-color: #3B6FD4; }
+.regla-error { background: #FBE4E4; border-left-color: #B42318; }
+
+/* Linea de tiempo del historial */
+.linea-tiempo { border-left: 2px solid #C6CCD6; margin-left: .4rem; padding-left: 1.1rem; }
+.evento { position: relative; padding-bottom: .9rem; color: #1B2A41; }
+.evento::before {
+    content: ""; position: absolute; left: calc(-1.1rem - 6px); top: .35rem;
+    width: 10px; height: 10px; border-radius: 50%; background: #1F3864;
+}
+.evento-meta { color: #5B6B85; font-size: .82rem; }
+
+/* Tablas simples */
+.tabla-simple { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.tabla-simple th { background: #F0F2F6; color: #1B2A41; text-align: left; padding: .45rem .6rem; border: none; }
+.tabla-simple td { padding: .45rem .6rem; border: none; border-bottom: 1px solid #DDE1E7; color: #1B2A41; }
+
+/* Los botones deshabilitados no deben parecer activos */
+.stButton > button:disabled { opacity: .45; cursor: not-allowed; }

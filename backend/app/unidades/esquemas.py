@@ -19,6 +19,7 @@ class AltaUnidadIn(BaseModel):
     circuito: Circuito
     id_sucursal: str
     km_inicial: int = Field(ge=0)
+    km_proximo_service: Optional[int] = Field(default=None, ge=0)
     fecha_hora: Optional[datetime] = None  # carga diferida
 
     @field_validator("vin")
@@ -84,6 +85,7 @@ class HistorialOut(BaseModel):
 class AsignacionIn(BaseModel):
     id_responsable: int
     id_sucursal: str
+    motivo: Optional[str] = None
     fecha_hora: Optional[datetime] = None
 
 
@@ -101,6 +103,43 @@ class ServiceFinIn(BaseModel):
     km: int = Field(ge=0)
     proximo_service_km: Optional[int] = Field(default=None, ge=0)
     fecha_hora: Optional[datetime] = None
+
+
+class SucursalOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    codigo: str
+    nombre: str
+
+
+class ResponsableOpcionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nombre: str
+    id_sucursal: Optional[str] = None
+    activo: bool
+
+
+class AsignacionHistorialOut(BaseModel):
+    id_sucursal: str
+    sucursal_nombre: Optional[str] = None
+    responsable_nombre: Optional[str] = None
+    fecha_desde: datetime
+    fecha_hasta: Optional[datetime] = None
+
+
+class AltaRecienteOut(BaseModel):
+    id: int
+    patente: str
+    fecha_hora: datetime
+    origen: str
+
+
+class LimiteRotacionOut(BaseModel):
+    circuito: Circuito
+    meses: int
+    fecha_limite: datetime
 
 
 class MovimientoOut(BaseModel):

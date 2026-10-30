@@ -83,3 +83,23 @@ Donnet (no el de Ford): el ultimo cuadro de `logo-donnet-animado.gif` de donnet.
 fijo y con fondo transparente, en P1/P2 sobre el titulo y en la barra lateral de las
 pantallas internas; el favicon es la "D" del logo. Los colores siguen siendo los de las
 referencias.
+
+### Pantallas P3, P4 y P8: diferencias con las referencias
+
+- **Menu lateral:** muestra solo las opciones construidas, habilitadas por `menu_permitido`
+  de `/yo`. Tablero, Uso comercial, Prestamos, Infracciones, Alertas y Reportes se agregan
+  en sus etapas. Se sumo "Altas" al menu de Resp. Posventa, que HU-02 habilita y faltaba.
+- **Asesor:** el prompt lo envia a P7, que corresponde a la etapa 2; hasta entonces entra a P3.
+- **P3:** sin mapa de Traccar (etapa 4).
+- **P4:** sin la regla de infracciones pendientes (etapa 3). "Desde" es informativo: la
+  asignacion se registra en el momento de confirmar. El motivo se guarda en
+  `evento_unidad.datos`, sin columna nueva; la lista de motivos es propia, porque la
+  referencia solo muestra un ejemplo.
+- **P8:** sin dispositivo Traccar (etapa 4) ni busqueda en el DMS: el DMS simulado no publica
+  unidades, y agregarlas haria que la sincronizacion les de el alta sola, sin pasar por esta
+  pantalla. Modelo y version quedan en dos campos, como en `unidad_demo`. El circuito se
+  deduce del rol, que solo puede dar de alta en el suyo.
+
+Rutas de lectura agregadas para estas pantallas, no listadas en el prompt: `GET /unidades`,
+`/unidades/recientes`, `/unidades/limite-rotacion`, `/unidades/{id}/asignaciones`,
+`/sucursales` y `/responsables`.

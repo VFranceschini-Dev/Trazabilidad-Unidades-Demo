@@ -39,7 +39,6 @@ if guardar:
         if estado == 200:
             st.success("Contraseña actualizada.")
             st.session_state["usuario"]["debe_cambiar_clave"] = False
-            rol = st.session_state["usuario"]["rol"]
-            st.switch_page("paginas/p7_test_drive.py" if rol == "ASESOR" else "paginas/p3_ficha_historial.py")
+            st.switch_page("paginas/p3_ficha_historial.py")
         else:
             st.error(detalle_error(cuerpo))

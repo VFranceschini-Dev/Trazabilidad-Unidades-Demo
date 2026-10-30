@@ -6,7 +6,7 @@ Ventas (COMERCIAL) o Resp. Posventa (POSVENTA), segun la tabla de la especificac
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -18,15 +18,18 @@ from app.core.db import get_session
 from app.core.excepciones import ErrorDominio
 from app.core.seguridad import obtener_usuario, requerir_rol
 from app.identidad.models import Rol, Usuario
-from app.tablas_generales.models import Sucursal
+from app.tablas_generales.models import Sucursal, valor_parametro
 from app.unidades import service
 from app.unidades.esquemas import (
-    AsignacionIn,
+    AltaRecienteOut,
     AltaUnidadIn,
+    AsignacionHistorialOut,
+    AsignacionIn,
     EventoOut,
     FichaUnidadOut,
     HistorialOut,
     LiberacionIn,
+    LimiteRotacionOut,
     MovimientoOut,
     ResponsableOut,
     ServiceFinIn,
@@ -78,6 +81,7 @@ def crear_unidad(
             circuito=datos.circuito,
             id_sucursal=datos.id_sucursal,
             km_inicial=datos.km_inicial,
+            km_proximo_service=datos.km_proximo_service,
             usuario=usuario,
             origen=estados.Origen.WEB,
             fecha_hora=datos.fecha_hora,
@@ -94,6 +98,69 @@ def _evento_out(sesion: Session, evento: Any) -> EventoOut:
         u = sesion.get(Usuario, evento.id_usuario)
         fila.usuario_nombre = u.nombre if u is not None else None
     return fila
+
+
+@router.get("", response_model=list[UnidadOut])
+def listar(
+    estado: Optional[list[str]] = Query(default=None, description="Uno o varios estados"),
+    circuito: Optional[Circuito] = None,
+    q: Optional[str] = Query(default=None, description="Patente o VIN (parcial)"),
+    usuario: Any = Depends(obtener_usuario),
+    sesion: Session = Depends(get_session),
+) -> list[UnidadOut]:
+    unidades = service.listar_unidades(sesion, estados_unidad=estado, circuito=circuito, texto=q)
+    return [_out(sesion, u) for u in unidades]
+
+
+@router.get("/recientes", response_model=list[AltaRecienteOut])
+def recientes(
+    limite: int = Query(default=5, ge=1, le=50),
+    usuario: Any = Depends(obtener_usuario),
+    sesion: Session = Depends(get_session),
+) -> list[AltaRecienteOut]:
+    return [
+        AltaRecienteOut(id=u.id, patente=u.patente, fecha_hora=e.fecha_hora, origen=e.origen)
+        for u, e in service.altas_recientes(sesion, limite)
+    ]
+
+
+@router.get("/limite-rotacion", response_model=LimiteRotacionOut)
+def limite_rotacion(
+    circuito: Circuito,
+    usuario: Any = Depends(obtener_usuario),
+    sesion: Session = Depends(get_session),
+) -> LimiteRotacionOut:
+    """HU-02.4: limite que tendria una unidad dada de alta ahora en ese circuito."""
+    ahora = datetime.now(timezone.utc)
+    por_defecto = "6" if circuito is Circuito.COMERCIAL else "12"
+    return LimiteRotacionOut(
+        circuito=circuito,
+        meses=int(valor_parametro(sesion, "plazo_rotacion_meses", por_defecto, circuito=circuito.value)),
+        fecha_limite=service.fecha_limite_rotacion(sesion, circuito, ahora),
+    )
+
+
+@router.get("/{id_unidad}/asignaciones", response_model=list[AsignacionHistorialOut])
+def asignaciones(
+    id_unidad: int,
+    usuario: Any = Depends(obtener_usuario),
+    sesion: Session = Depends(get_session),
+) -> list[AsignacionHistorialOut]:
+    service.obtener_unidad(sesion, id_unidad)
+    filas = []
+    for a in service.asignaciones_de(sesion, id_unidad):
+        responsable = sesion.get(Usuario, a.id_responsable)
+        sucursal = sesion.scalar(select(Sucursal).where(Sucursal.codigo == a.id_sucursal))
+        filas.append(
+            AsignacionHistorialOut(
+                id_sucursal=a.id_sucursal,
+                sucursal_nombre=sucursal.nombre if sucursal is not None else None,
+                responsable_nombre=responsable.nombre if responsable is not None else None,
+                fecha_desde=a.fecha_desde,
+                fecha_hasta=a.fecha_hasta,
+            )
+        )
+    return filas
 
 
 @router.get("/{id_unidad}", response_model=FichaUnidadOut)
@@ -161,7 +228,7 @@ def asignar(
     with sesion.begin_nested():
         unidad, evento = service.asignar(
             sesion, id_unidad,
-            id_responsable=datos.id_responsable, id_sucursal=datos.id_sucursal,
+            id_responsable=datos.id_responsable, id_sucursal=datos.id_sucursal, motivo=datos.motivo,
             usuario=usuario, reasignacion=False, fecha_hora=datos.fecha_hora,
             ip=auditoria.ip_desde_request(request),
         )
@@ -181,7 +248,7 @@ def reasignar(
     with sesion.begin_nested():
         unidad, evento = service.asignar(
             sesion, id_unidad,
-            id_responsable=datos.id_responsable, id_sucursal=datos.id_sucursal,
+            id_responsable=datos.id_responsable, id_sucursal=datos.id_sucursal, motivo=datos.motivo,
             usuario=usuario, reasignacion=True, fecha_hora=datos.fecha_hora,
             ip=auditoria.ip_desde_request(request),
         )
