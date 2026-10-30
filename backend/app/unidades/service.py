@@ -89,6 +89,7 @@ def alta_unidad(
     usuario: Any,
     origen: estados.Origen = estados.Origen.WEB,
     fecha_hora: Optional[datetime] = None,
+    ip: Optional[str] = None,
 ) -> UnidadDemo:
     """HU-02: VIN de 17 caracteres, patente/VIN no registrados; queda DISPONIBLE con evento ALTA."""
     if len(vin) != 17:
@@ -146,7 +147,7 @@ def alta_unidad(
     )
     unidad.fecha_alta = evento.fecha_hora
     unidad.fecha_limite_rotacion = fecha_limite_rotacion(sesion, circuito, evento.fecha_hora)
-    auditar(sesion, id_usuario=getattr(usuario, "id", None), accion="ALTA_UNIDAD", recurso=f"unidad:{unidad.id}", ip=None, resultado="EXITO")
+    auditar(sesion, id_usuario=getattr(usuario, "id", None), accion="ALTA_UNIDAD", recurso=f"unidad:{unidad.id}", ip=ip, resultado="EXITO")
     return unidad
 
 
@@ -198,6 +199,7 @@ def asignar(
     reasignacion: bool = False,
     origen: estados.Origen = estados.Origen.WEB,
     fecha_hora: Optional[datetime] = None,
+    ip: Optional[str] = None,
 ) -> tuple[UnidadDemo, EventoUnidad]:
     """HU-03: asignacion desde DISPONIBLE o reasignacion desde ASIGNADA (cierra la anterior)."""
     unidad = obtener_unidad(sesion, id_unidad)
@@ -229,7 +231,7 @@ def asignar(
     _cerrar_asignaciones_abiertas(sesion, unidad.id, evento.fecha_hora)
     _abrir_asignacion(sesion, unidad, id_responsable, id_sucursal, evento.fecha_hora, evento.id_evento)
     unidad.id_sucursal = id_sucursal
-    auditar(sesion, id_usuario=getattr(usuario, "id", None), accion="ASIGNACION", recurso=f"unidad:{unidad.id}", ip=None, resultado="EXITO")
+    auditar(sesion, id_usuario=getattr(usuario, "id", None), accion="ASIGNACION", recurso=f"unidad:{unidad.id}", ip=ip, resultado="EXITO")
     return unidad, evento
 
 
@@ -241,6 +243,7 @@ def liberar(
     motivo: Optional[str] = None,
     origen: estados.Origen = estados.Origen.WEB,
     fecha_hora: Optional[datetime] = None,
+    ip: Optional[str] = None,
 ) -> tuple[UnidadDemo, EventoUnidad]:
     """HU-03.5: cierra la asignacion vigente y la unidad vuelve a DISPONIBLE."""
     unidad = obtener_unidad(sesion, id_unidad)
@@ -251,7 +254,7 @@ def liberar(
         fecha_hora=instante,
     )
     _cerrar_asignaciones_abiertas(sesion, unidad.id, evento.fecha_hora)
-    auditar(sesion, id_usuario=getattr(usuario, "id", None), accion="LIBERACION", recurso=f"unidad:{unidad.id}", ip=None, resultado="EXITO")
+    auditar(sesion, id_usuario=getattr(usuario, "id", None), accion="LIBERACION", recurso=f"unidad:{unidad.id}", ip=ip, resultado="EXITO")
     return unidad, evento
 
 
@@ -263,6 +266,7 @@ def service_ingreso(
     observaciones: Optional[str] = None,
     origen: estados.Origen = estados.Origen.WEB,
     fecha_hora: Optional[datetime] = None,
+    ip: Optional[str] = None,
 ) -> tuple[UnidadDemo, EventoUnidad]:
     """HU-07.5: DISPONIBLE -> EN_SERVICE."""
     unidad = obtener_unidad(sesion, id_unidad)
@@ -272,7 +276,7 @@ def service_ingreso(
         datos={"observaciones": observaciones} if observaciones else {},
         fecha_hora=instante,
     )
-    auditar(sesion, id_usuario=getattr(usuario, "id", None), accion="SERVICE_INGRESO", recurso=f"unidad:{unidad.id}", ip=None, resultado="EXITO")
+    auditar(sesion, id_usuario=getattr(usuario, "id", None), accion="SERVICE_INGRESO", recurso=f"unidad:{unidad.id}", ip=ip, resultado="EXITO")
     return unidad, evento
 
 
@@ -285,6 +289,7 @@ def service_fin(
     usuario: Any,
     origen: estados.Origen = estados.Origen.WEB,
     fecha_hora: Optional[datetime] = None,
+    ip: Optional[str] = None,
 ) -> tuple[UnidadDemo, EventoUnidad]:
     """HU-07.5: EN_SERVICE -> DISPONIBLE actualizando km y proximo service.
 
@@ -307,7 +312,7 @@ def service_fin(
     else:
         intervalo = int(valor_parametro(sesion, "service_intervalo_km", "10000"))
         unidad.km_proximo_service = km + intervalo
-    auditar(sesion, id_usuario=getattr(usuario, "id", None), accion="SERVICE_FIN", recurso=f"unidad:{unidad.id}", ip=None, resultado="EXITO")
+    auditar(sesion, id_usuario=getattr(usuario, "id", None), accion="SERVICE_FIN", recurso=f"unidad:{unidad.id}", ip=ip, resultado="EXITO")
     return unidad, evento
 
 

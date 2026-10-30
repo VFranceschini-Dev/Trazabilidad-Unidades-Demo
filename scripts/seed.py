@@ -2,6 +2,7 @@
 
 Los eventos de la semilla se generan a traves del motor de estados (nunca con inserts
 directos). Reejecutable: si algo ya existe, no lo duplica. Datos ficticios (Ley 25.326).
+Solo corre con ENTORNO=demo: en produccion las cuentas se crean desde el DMS.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from sqlalchemy import select  # noqa: E402
 
 from app.core import estados  # noqa: E402
+from app.core.config import settings  # noqa: E402
 from app.core.db import SessionLocal  # noqa: E402
 from app.core.seguridad import hash_clave  # noqa: E402
 from app.identidad.models import Rol, Usuario  # noqa: E402
@@ -43,12 +45,12 @@ PARAMETROS = [
 
 USUARIOS = [
     # legajo, correo, nombre, rol, sucursal, variable de entorno con la clave, clave temporal del README
-    ("1001", "admin@demo.local", "Ana Administradora", Rol.ADMIN, "SC01", "DEMO_PASSWORD_ADMIN", "DemoAdmin2026!"),
-    ("1002", "mkt@demo.local", "Marta Marketing", Rol.RESP_MKT_VENTAS, "SC01", "DEMO_PASSWORD_MARKETING", "DemoMkt2026!"),
-    ("1003", "asesor@demo.local", "Alberto Asesor", Rol.ASESOR, "SC02", "DEMO_PASSWORD_ASESOR", "DemoAsesor2026!"),
-    ("1004", "posventa@demo.local", "Paula Posventa", Rol.RESP_POSVENTA, "SC01", "DEMO_PASSWORD_POSVENTA", "DemoPosventa2026!"),
-    ("1005", "taller@demo.local", "Tomas Taller", Rol.TECNICO_TALLER, "SC03", "DEMO_PASSWORD_TALLER", "DemoTaller2026!"),
-    ("1006", "usados@demo.local", "Uriel Usados", Rol.RESP_USADOS, "SC04", "DEMO_PASSWORD_USADOS", "DemoUsados2026!"),
+    ("1001", "admin@demo.local", "Ana Administradora", Rol.ADMIN, "SC01", "DEMO_CLAVE_ADMIN", "DemoAdmin2026!"),
+    ("1002", "mkt@demo.local", "Marta Marketing", Rol.RESP_MKT_VENTAS, "SC01", "DEMO_CLAVE_MARKETING", "DemoMkt2026!"),
+    ("1003", "asesor@demo.local", "Alberto Asesor", Rol.ASESOR, "SC02", "DEMO_CLAVE_ASESOR", "DemoAsesor2026!"),
+    ("1004", "posventa@demo.local", "Paula Posventa", Rol.RESP_POSVENTA, "SC01", "DEMO_CLAVE_POSVENTA", "DemoPosventa2026!"),
+    ("1005", "taller@demo.local", "Tomas Taller", Rol.TECNICO_TALLER, "SC03", "DEMO_CLAVE_TALLER", "DemoTaller2026!"),
+    ("1006", "usados@demo.local", "Uriel Usados", Rol.RESP_USADOS, "SC04", "DEMO_CLAVE_USADOS", "DemoUsados2026!"),
 ]
 
 # 15 unidades Ford del mercado argentino, repartidas entre circuitos
@@ -78,7 +80,16 @@ CLIENTES = [
 ]
 
 
+class EntornoNoDemo(SystemExit):
+    """La semilla se niega a correr fuera de ENTORNO=demo."""
+
+
 def sembrar() -> None:
+    if settings.entorno != "demo":
+        raise EntornoNoDemo(
+            f"La semilla solo corre con ENTORNO=demo (actual: {settings.entorno}). "
+            "En produccion las cuentas se crean desde el DMS con contraseña temporal."
+        )
     sesion = SessionLocal()
     try:
         for codigo, nombre in SEDES:
@@ -93,8 +104,11 @@ def sembrar() -> None:
             if existe is None:
                 sesion.add(Parametro(clave=clave, valor=valor, circuito=circuito, id_sucursal=id_sucursal))
 
+        # Cuentas de demo (es_demo): sin cambio de clave obligatorio en el primer ingreso para
+        # que el guion no se corte; el resto de la politica de seguridad se aplica igual.
         for legajo, correo, nombre, rol, sucursal, var_env, clave_readme in USUARIOS:
-            if sesion.scalar(select(Usuario).where(Usuario.correo == correo)) is None:
+            existente = sesion.scalar(select(Usuario).where(Usuario.correo == correo))
+            if existente is None:
                 clave = os.environ.get(var_env) or clave_readme
                 sesion.add(
                     Usuario(
@@ -104,9 +118,13 @@ def sembrar() -> None:
                         rol=rol,
                         id_sucursal=sucursal,
                         hash_clave=hash_clave(clave),
-                        debe_cambiar_clave=True,
+                        debe_cambiar_clave=False,
+                        es_demo=True,
                     )
                 )
+            elif not existente.es_demo:  # cuentas creadas antes de existir es_demo
+                existente.es_demo = True
+                existente.debe_cambiar_clave = False
         # usuario tecnico n8n: autenticado solo por API key; clave aleatoria que nadie conoce
         if sesion.scalar(select(Usuario).where(Usuario.legajo == "9000")) is None:
             sesion.add(

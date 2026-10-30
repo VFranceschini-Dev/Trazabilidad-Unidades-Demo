@@ -81,7 +81,9 @@ def crear_unidad(
             usuario=usuario,
             origen=estados.Origen.WEB,
             fecha_hora=datos.fecha_hora,
+            ip=auditoria.ip_desde_request(request),
         )
+    sesion.commit()  # sin commit, get_session cierra la sesion y descarta la operacion
     ultimo = service.historial_eventos(sesion, unidad.id)[0]
     return MovimientoOut(unidad=_out(sesion, unidad), evento=_evento_out(sesion, ultimo))
 
@@ -151,6 +153,7 @@ def responsable(
 def asignar(
     id_unidad: int,
     datos: AsignacionIn,
+    request: Request,
     usuario: Any = Depends(requerir_rol(Rol.RESP_MKT_VENTAS.value)),
     sesion: Session = Depends(get_session),
 ) -> MovimientoOut:
@@ -160,7 +163,9 @@ def asignar(
             sesion, id_unidad,
             id_responsable=datos.id_responsable, id_sucursal=datos.id_sucursal,
             usuario=usuario, reasignacion=False, fecha_hora=datos.fecha_hora,
+            ip=auditoria.ip_desde_request(request),
         )
+    sesion.commit()
     return MovimientoOut(unidad=_out(sesion, unidad), evento=_evento_out(sesion, evento))
 
 
@@ -168,6 +173,7 @@ def asignar(
 def reasignar(
     id_unidad: int,
     datos: AsignacionIn,
+    request: Request,
     usuario: Any = Depends(requerir_rol(Rol.RESP_MKT_VENTAS.value)),
     sesion: Session = Depends(get_session),
 ) -> MovimientoOut:
@@ -177,7 +183,9 @@ def reasignar(
             sesion, id_unidad,
             id_responsable=datos.id_responsable, id_sucursal=datos.id_sucursal,
             usuario=usuario, reasignacion=True, fecha_hora=datos.fecha_hora,
+            ip=auditoria.ip_desde_request(request),
         )
+    sesion.commit()
     return MovimientoOut(unidad=_out(sesion, unidad), evento=_evento_out(sesion, evento))
 
 
@@ -185,14 +193,17 @@ def reasignar(
 def liberar(
     id_unidad: int,
     datos: LiberacionIn,
+    request: Request,
     usuario: Any = Depends(requerir_rol(Rol.RESP_MKT_VENTAS.value)),
     sesion: Session = Depends(get_session),
 ) -> MovimientoOut:
     """HU-03.5: cierra la asignacion vigente y vuelve a DISPONIBLE."""
     with sesion.begin_nested():
         unidad, evento = service.liberar(
-            sesion, id_unidad, usuario=usuario, motivo=datos.motivo, fecha_hora=datos.fecha_hora
+            sesion, id_unidad, usuario=usuario, motivo=datos.motivo, fecha_hora=datos.fecha_hora,
+            ip=auditoria.ip_desde_request(request),
         )
+    sesion.commit()
     return MovimientoOut(unidad=_out(sesion, unidad), evento=_evento_out(sesion, evento))
 
 
@@ -200,14 +211,17 @@ def liberar(
 def service_ingreso(
     id_unidad: int,
     datos: ServiceIngresoIn,
+    request: Request,
     usuario: Any = Depends(requerir_rol(Rol.RESP_POSVENTA.value, Rol.RESP_MKT_VENTAS.value)),
     sesion: Session = Depends(get_session),
 ) -> MovimientoOut:
     """HU-07.5: DISPONIBLE -> EN_SERVICE."""
     with sesion.begin_nested():
         unidad, evento = service.service_ingreso(
-            sesion, id_unidad, usuario=usuario, observaciones=datos.observaciones, fecha_hora=datos.fecha_hora
+            sesion, id_unidad, usuario=usuario, observaciones=datos.observaciones, fecha_hora=datos.fecha_hora,
+            ip=auditoria.ip_desde_request(request),
         )
+    sesion.commit()
     return MovimientoOut(unidad=_out(sesion, unidad), evento=_evento_out(sesion, evento))
 
 
@@ -215,6 +229,7 @@ def service_ingreso(
 def service_fin(
     id_unidad: int,
     datos: ServiceFinIn,
+    request: Request,
     usuario: Any = Depends(requerir_rol(Rol.RESP_POSVENTA.value, Rol.RESP_MKT_VENTAS.value)),
     sesion: Session = Depends(get_session),
 ) -> MovimientoOut:
@@ -223,5 +238,7 @@ def service_fin(
         unidad, evento = service.service_fin(
             sesion, id_unidad, km=datos.km, proximo_service_km=datos.proximo_service_km,
             usuario=usuario, fecha_hora=datos.fecha_hora,
+            ip=auditoria.ip_desde_request(request),
         )
+    sesion.commit()
     return MovimientoOut(unidad=_out(sesion, unidad), evento=_evento_out(sesion, evento))

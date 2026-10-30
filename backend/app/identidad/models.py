@@ -41,3 +41,5 @@ class Usuario(Base):
     clave_temporal_hasta: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     ultima_actividad: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora_utc)
+    # Cuenta de demostracion: solo ingresa con ENTORNO=demo (ver docs/decisiones.md)
+    es_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")

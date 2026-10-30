@@ -28,11 +28,14 @@ def bloqueado_hasta(usuario: Usuario) -> bool:
 
 def ingresar(sesion: Session, correo: str, clave: str, ip: Optional[str], request: Any = None) -> dict[str, Any]:
     """HU-01.1..4: mensaje unico 'Usuario o contraseña incorrectos' con el numero de intento;
-    5 intentos fallidos -> bloqueo de 15 minutos; baja en DMS -> acceso rechazado."""
+    5 intentos fallidos -> bloqueo de 15 minutos; baja en DMS -> acceso rechazado;
+    cuenta es_demo con ENTORNO=produccion -> acceso rechazado."""
     usuario = obtener_por_correo(sesion, correo)
 
-    if usuario is None or not usuario.activo:
-        # HU-01.4 y no-existente: mismo mensaje generico, sin revelar cual dato fallo
+    cuenta_demo_bloqueada = usuario is not None and usuario.es_demo and settings.entorno != "demo"
+    if usuario is None or not usuario.activo or cuenta_demo_bloqueada:
+        # HU-01.4, no-existente y cuenta de demo fuera de ENTORNO=demo: mismo mensaje
+        # generico, sin revelar cual dato fallo
         auditoria.registrar(sesion, id_usuario=None, accion="LOGIN_FALLIDO", recurso="auth", ip=ip, resultado="FRACASO")
         sesion.commit()
         raise credenciales_invalidas("Usuario o contraseña incorrectos.")

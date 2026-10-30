@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "postgresql+psycopg://demo_app:cambiar_app_api@localhost:5432/demo_unidades"
+    # demo: habilita la semilla y las cuentas es_demo; produccion: ambas quedan bloqueadas.
+    # Por defecto produccion, asi una instalacion sin .env nunca expone las cuentas de demo.
+    entorno: Literal["demo", "produccion"] = "produccion"
+
+    database_url: str ="postgresql+psycopg://demo_app:cambiar_app_api@localhost:5432/demo_unidades"
     database_url_migraciones: str = ""
 
     jwt_secret: str = "clave-demo-solo-desarrollo"

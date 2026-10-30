@@ -23,9 +23,9 @@ make demo              # levanta todo, migra, siembra y genera actas de prueba
 Otros objetivos del Makefile: `up`, `down`, `reset` (borra volúmenes), `seed`, `actas`, `gps`,
 `test`, `capturas`, `paquete`, `logs`.
 
-## Usuarios de demo (cambiar contraseña al primer ingreso)
+## Usuarios de demo (solo con `ENTORNO=demo`; claves configurables con `DEMO_CLAVE_*`)
 
-| Rol | Correo | Contraseña temporal |
+| Rol | Correo | Contraseña |
 | --- | --- | --- |
 | Administrador del sistema | admin@demo.local | `DemoAdmin2026!` |
 | Responsable de Marketing y Ventas | mkt@demo.local | `DemoMkt2026!` |

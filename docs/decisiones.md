@@ -42,3 +42,44 @@ coincidía con `DEMO_DB_APP_PASSWORD` de `.env` (la API no podía autenticar). S
 `init_db_roles.sql` por `init_db_roles.sh`, que lee `DEMO_DB_APP_USER` y
 `DEMO_DB_APP_PASSWORD` del entorno del servicio `db`. Los volúmenes ya inicializados se
 alinean con `ALTER ROLE` desde el entorno de pruebas.
+
+### ENTORNO con valor por defecto `produccion`
+
+El prompt pide la variable `ENTORNO` (`demo` o `produccion`) para que la semilla y las
+cuentas de demo solo funcionen en la demostracion. Si `.env` no la define, `core/config.py`
+asume `produccion`: una instalacion sin configurar nunca expone las cuentas con
+credenciales publicas. `.env.example` trae `ENTORNO=demo`, asi que `make demo` no cambia.
+Con `produccion`, `scripts/seed.py` termina con un mensaje y sin tocar la base.
+
+### Cuentas `es_demo`: excepcion al cambio de clave del primer ingreso
+
+Columna `usuario.es_demo` (migracion `0003_usuario_es_demo`). Las cuentas de la semilla
+quedan con `es_demo = true` y `debe_cambiar_clave = false` para que el guion de la demo no
+se corte; las cuentas creadas antes de esta columna se marcan al volver a correr la semilla.
+El resto de la politica (bloqueo por intentos, vencimiento del token, inactividad,
+auditoria) se aplica igual. La excepcion vale solo con `ENTORNO=demo`: con `produccion`
+una cuenta `es_demo` no puede ingresar y recibe el mismo mensaje generico que una cuenta
+inactiva. Una clave temporal emitida por recuperacion sigue exigiendo el cambio.
+
+### Claves de demo en `DEMO_CLAVE_*` con los valores del README
+
+El prompt nombra las variables `DEMO_CLAVE_*` y da como ejemplo `Demo-Gerencia-2026`. Se
+adopto el nombre de las variables pero se mantuvieron las claves ya documentadas en el
+README (`DemoMkt2026!`, etc.), que cumplen la politica. Si una variable falta, la semilla
+usa la clave del README. No existe un perfil "Gerencia": los seis perfiles son los de la
+Tabla 30 (`identidad.models.Rol`).
+
+### Lista de contraseñas comunes
+
+`backend/datos/contrasenas_comunes.txt` contiene las primeras 1.000 lineas de
+`Passwords/Common-Credentials/10k-most-common.txt` de SecLists (danielmiessler/SecLists).
+Ninguna llega a 10 caracteres, por lo que la regla de longitud minima ya las rechaza; la
+lista se mantiene porque la exige la politica y cubre cambios futuros del minimo.
+
+### Logo de la concesionaria en lugar de "Parque Demo" sin marca
+
+El prompt pide "sin logos ni colores de Ford". La demo muestra el logo de la concesionaria
+Donnet (no el de Ford): el ultimo cuadro de `logo-donnet-animado.gif` de donnet.com.ar,
+fijo y con fondo transparente, en P1/P2 sobre el titulo y en la barra lateral de las
+pantallas internas; el favicon es la "D" del logo. Los colores siguen siendo los de las
+referencias.
