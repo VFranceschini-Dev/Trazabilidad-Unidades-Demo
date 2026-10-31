@@ -27,7 +27,7 @@ class EmpleadoDMS:
     nombre: str
     correo: str
     id_sucursal: str
-    rol: str        # ADMIN | RESP_MKT_VENTAS | ASESOR | RESP_POSVENTA | TECNICO_TALLER | RESP_USADOS
+    rol: str        # ADMIN | RESP_MKT_VENTAS | ASESOR | RESP_POSVENTA | ADMINISTRACION | GERENCIA
     activo: bool
 
 

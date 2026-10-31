@@ -29,7 +29,7 @@ services:
       N8N_API_KEY: ${N8N_API_KEY:?usar .env}
       JWT_SECRET: ${JWT_SECRET:?usar .env}
       DMS_API_URL: http://dms:8100
-      ACTAS_DIR: /srv/datos_demo/actas_pdf
+      ACTAS_DIR: /actas
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     depends_on:
       db:
@@ -37,6 +37,7 @@ services:
     volumes:
       - ./scripts:/srv/scripts:ro
       - ./datos_demo:/srv/datos_demo
+      - actas_pdf:/actas
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/api/v1/salud',timeout=3)"]
       interval: 10s
@@ -78,7 +79,8 @@ services:
     env_file: .env
     environment:
       BACKEND_DIR: /srv/backend
-      PYTHONPATH: /srv/backend
+      SYNC_DMS_CADA_MINUTOS: "0"  # la sincronizacion real alteraria a los usuarios de prueba
+      PYTHONPATH: /srv/backend:/srv/n8n
       TEST_DB_NAME: ${TEST_DB_NAME:-demo_unidades_test}
       DATABASE_URL: postgresql+psycopg://${DEMO_DB_APP_USER:-demo_app}:${DEMO_DB_APP_PASSWORD:?usar .env}@db:5432/${TEST_DB_NAME:-demo_unidades_test}
       DATABASE_URL_MIGRACIONES: postgresql+psycopg://${DEMO_DB_OWNER:-demo_migraciones}:${DEMO_DB_OWNER_PASSWORD:?usar .env}@db:5432/${TEST_DB_NAME:-demo_unidades_test}
@@ -86,6 +88,7 @@ services:
     working_dir: /srv
     volumes:
       - ./tests:/srv/tests:ro
+      - ./n8n:/srv/n8n:ro
       - ./backend:/srv/backend:ro
       - ./scripts:/srv/scripts:ro
       - ./datos_demo:/srv/datos_demo:ro
@@ -112,10 +115,23 @@ services:
       start_period: 30s
 
   n8n:
-    image: n8nio/n8n:1.53.2
+    build:
+      context: ./n8n
     ports:
       - "127.0.0.1:5678:5678"
+    # Importa la casilla y el flujo en cada arranque y lo deja activo
+    entrypoint: >
+      sh -c "n8n import:credentials --input=/flujos/credenciales_imap.json &&
+      n8n import:workflow --input=/flujos/flujo_actas.json &&
+      n8n update:workflow --id=flujoactasdemo01 --active=true &&
+      exec n8n start"
+    depends_on:
+      api:
+        condition: service_healthy
+      mail:
+        condition: service_started
     environment:
+      N8N_API_KEY: ${N8N_API_KEY:?usar .env}
       GENERIC_TIMEZONE: America/Argentina/Buenos_Aires
       TZ: America/Argentina/Buenos_Aires
       N8N_BASIC_AUTH_ACTIVE: "true"
@@ -123,6 +139,7 @@ services:
       N8N_BASIC_AUTH_PASSWORD: ${N8N_CLAVE_ADMIN:-demo-n8n}
     volumes:
       - datos_n8n:/home/node/.n8n
+      - actas_pdf:/actas
       - ./n8n:/flujos:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:5678/healthz || exit 1"]
@@ -133,6 +150,10 @@ services:
 
   mail:
     image: greenmail/standalone:1.6.15
+    environment:
+      GREENMAIL_OPTS: >-
+        -Dgreenmail.setup.test.smtp -Dgreenmail.setup.test.imap -Dgreenmail.hostname=0.0.0.0
+        -Dgreenmail.users=administracion:casilla-de-prueba@demo.local
     ports:
       - "127.0.0.1:3025:3025"
 

@@ -26,6 +26,7 @@ PAGINAS = [
     st.Page("paginas/p3_ficha_historial.py", title="Ficha de unidad"),
     st.Page("paginas/p4_asignacion.py", title="Asignación"),
     st.Page("paginas/p5_prestamo_garantia.py", title="Préstamo por garantía"),
+    st.Page("paginas/p6_infracciones.py", title="Infracciones"),
     st.Page("paginas/p7_registro_uso.py", title="Registrar uso"),
     st.Page("paginas/p8_alta_unidad.py", title="Alta de unidad"),
 ]

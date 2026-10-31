@@ -106,3 +106,8 @@ div[role="radiogroup"] > label > div:first-child { display: none; }
     .fila-dato .rotulo { width: 46%; }
     .tabla-simple { font-size: .82rem; }
 }
+
+/* P6: confianza de cada dato extraido */
+.rotulo-campo { color: #4A5568; font-size: .88rem; margin-bottom: .15rem; }
+.conf-ok { color: #1E7B34; font-weight: 600; margin-left: .4rem; }
+.conf-baja { color: #B7791F; font-weight: 700; margin-left: .4rem; }

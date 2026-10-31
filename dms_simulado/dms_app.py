@@ -21,8 +21,8 @@ EMPLEADOS: list[dict[str, Any]] = [
     {"legajo": "1008", "nombre": "Carla Central", "correo": "asesor.central@demo.local", "id_sucursal": "SC01", "rol": "ASESOR", "activo": True},
     {"legajo": "1009", "nombre": "Sergio Saenz", "correo": "asesor.saenz@demo.local", "id_sucursal": "SC03", "rol": "ASESOR", "activo": True},
     {"legajo": "1004", "nombre": "Paula Posventa", "correo": "posventa@demo.local", "id_sucursal": "SC01", "rol": "RESP_POSVENTA", "activo": True},
-    {"legajo": "1005", "nombre": "Tomas Taller", "correo": "taller@demo.local", "id_sucursal": "SC03", "rol": "TECNICO_TALLER", "activo": True},
-    {"legajo": "1006", "nombre": "Uriel Usados", "correo": "usados@demo.local", "id_sucursal": "SC04", "rol": "RESP_USADOS", "activo": True},
+    {"legajo": "1010", "nombre": "Adriana Administracion", "correo": "administracion.usuario@demo.local", "id_sucursal": "SC01", "rol": "ADMINISTRACION", "activo": True},
+    {"legajo": "1011", "nombre": "Gustavo Gerencia", "correo": "gerencia@demo.local", "id_sucursal": "SC01", "rol": "GERENCIA", "activo": True},
     # dado de baja en el DMS: al sincronizar debe quedar inactivo sin borrar su historial
     {"legajo": "1007", "nombre": "Bruno Baja", "correo": "baja@demo.local", "id_sucursal": "SC02", "rol": "ASESOR", "activo": False},
 ]

@@ -35,8 +35,8 @@ Ninguna de estas cuentas exige cambiar la contraseña al primer ingreso (ver `do
 | Asesor comercial (Casa Central) | asesor.central@demo.local | `DemoCentral2026!` |
 | Asesor comercial (Sáenz Peña) | asesor.saenz@demo.local | `DemoSaenz2026!` |
 | Responsable de Posventa | posventa@demo.local | `DemoPosventa2026!` |
-| Técnico de Taller | taller@demo.local | `DemoTaller2026!` |
-| Responsable de División Usados | usados@demo.local | `DemoUsados2026!` |
+| Administración | administracion.usuario@demo.local | `DemoAdministracion2026!` |
+| Gerencia | gerencia@demo.local | `DemoGerencia2026!` |
 | Usuario técnico n8n | tecnico-n8n@demo.local | (API key por cabecera, no ingresa por pantalla) |
 
 El DMS simulado da de alta además un empleado dado de baja (`baja@demo.local`) para probar HU-15.2 y HU-01.4.
@@ -55,7 +55,8 @@ sobre esa tabla; el rol dueño (`demo_migraciones`) ejecuta las migraciones.
 - **Etapa 0 — andamiaje y contenedores:** ✅ estructura, Compose con healthchecks, Nginx + certificado, Alembic inicial, esqueleto web.
 - **Etapa 1 — núcleo de trazabilidad:** ✅ identidad, motor de estados, sincronización DMS, pantallas P1, P2, P3, P4 y P8.
 - **Etapa 2 — operación diaria:** ✅ usos comerciales, préstamos por garantía, pantallas P5 y P7.
-- Etapas 3 a 5: infracciones/OCR, ubicación/GPS y tablero, empaquetado final.
+- **Etapa 3 — circuito de infracciones:** ✅ correo, n8n, lectura de actas, bandeja y pantalla P6.
+- Etapas 4 y 5: ubicación/GPS y tablero, empaquetado final.
 
 ## Desarrollo
 
@@ -68,6 +69,19 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db api web 
 Web en `http://localhost:8501` y API en `http://localhost:8000/api/v1/docs`. La primera vez,
 cargar los datos con `docker compose exec api python /srv/scripts/seed.py` (en Git Bash,
 anteponer `MSYS_NO_PATHCONV=1`).
+
+## Actas de prueba
+
+Con todos los servicios levantados (`make up` o `docker compose up -d`), `make actas` genera 8 PDF
+y los envía por correo. Sin `make`:
+
+```bash
+docker compose exec -T api python /srv/scripts/generar_actas.py
+docker compose exec -T api python /srv/scripts/enviar_actas.py
+```
+
+n8n las lee en menos de un minuto y quedan en **Infracciones** (usuario de Administración). Un acta
+repite su número y no se duplica; otra es ilegible y queda para carga manual.
 
 ## Pruebas
 

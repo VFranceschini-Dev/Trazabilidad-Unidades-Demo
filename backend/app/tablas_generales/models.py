@@ -45,6 +45,7 @@ class Alerta(Base):
     id_alerta: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tipo_alerta: Mapped[str] = mapped_column(String(30))
     id_unidad: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("unidad_demo.id"), nullable=True)
+    id_infraccion: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("infraccion.id_infraccion"), nullable=True)
     mensaje: Mapped[str] = mapped_column(String(200))
     estado: Mapped[str] = mapped_column(String(10), default="ABIERTA", server_default="ABIERTA")
     fecha_creacion: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora_utc)

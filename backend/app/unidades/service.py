@@ -76,6 +76,41 @@ def obtener_unidad(sesion: Session, id_unidad: int) -> UnidadDemo:
     return unidad
 
 
+def verificar_acceso(sesion: Session, usuario: Any, unidad: UnidadDemo) -> None:
+    """Tabla 30: el Asesor solo ve sus unidades y el Resp. Posventa las de su circuito."""
+    from app.identidad.models import Rol
+
+    if usuario.rol is Rol.RESP_POSVENTA and unidad.circuito is not Circuito.POSVENTA:
+        raise ErrorDominio(codigo="SIN_PERMISO", mensaje="La unidad no pertenece a su circuito.", estado_http=403)
+    if usuario.rol is Rol.ASESOR:
+        asignada = sesion.scalar(
+            select(Asignacion.id).where(
+                Asignacion.id_unidad == unidad.id,
+                Asignacion.id_responsable == usuario.id,
+                Asignacion.fecha_hasta.is_(None),
+            )
+        )
+        if asignada is None:
+            raise ErrorDominio(codigo="SIN_PERMISO", mensaje="La unidad no está asignada a este usuario.", estado_http=403)
+
+
+def filtrar_por_perfil(sesion: Session, usuario: Any, unidades: list[UnidadDemo]) -> list[UnidadDemo]:
+    from app.identidad.models import Rol
+
+    if usuario.rol is Rol.RESP_POSVENTA:
+        return [u for u in unidades if u.circuito is Circuito.POSVENTA]
+    if usuario.rol is Rol.ASESOR:
+        propias = set(
+            sesion.scalars(
+                select(Asignacion.id_unidad).where(
+                    Asignacion.id_responsable == usuario.id, Asignacion.fecha_hasta.is_(None)
+                )
+            )
+        )
+        return [u for u in unidades if u.id in propias]
+    return unidades
+
+
 def obtener_unidad_bloqueada(sesion: Session, id_unidad: int) -> UnidadDemo:
     """Bloquea la fila hasta el fin de la transaccion y la devuelve con sus datos vigentes.
 

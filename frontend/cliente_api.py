@@ -63,6 +63,20 @@ def post(ruta: str, cuerpo: dict[str, Any] | None = None, params: dict[str, Any]
     return request("POST", ruta, json_body=cuerpo, params=params)
 
 
+def put(ruta: str, cuerpo: dict[str, Any] | None = None) -> tuple[int, Any]:
+    return request("PUT", ruta, json_body=cuerpo)
+
+
+def binario(ruta: str) -> tuple[int, bytes]:
+    """GET de un archivo (PDF o imagen): devuelve (status, contenido)."""
+    cabeceras = {"Authorization": f"Bearer {_token()}"} if _token() else {}
+    respuesta = requests.get(f"{API_BASE_URL}{ruta}", headers=cabeceras, timeout=TIMEOUT)
+    if respuesta.status_code == 401:
+        _redirigir_login()
+        raise SesionVencida(respuesta.text)
+    return respuesta.status_code, respuesta.content
+
+
 def detalle_error(cuerpo: Any) -> str:
     if isinstance(cuerpo, dict):
         detalle = cuerpo.get("detalle")

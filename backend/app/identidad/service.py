@@ -136,8 +136,8 @@ MENU_POR_ROL: dict[Rol, list[str]] = {
     Rol.RESP_MKT_VENTAS: ["Inicio", "Unidades", "Asignaciones", "Altas"],
     Rol.ASESOR: ["Mis unidades", "Test drive"],
     Rol.RESP_POSVENTA: ["Inicio", "Unidades", "Altas", "Préstamos", "Service"],
-    Rol.TECNICO_TALLER: ["Service"],
-    Rol.RESP_USADOS: ["Inicio", "Unidades", "Pases a venta"],
+    Rol.ADMINISTRACION: ["Inicio", "Unidades", "Infracciones"],
+    Rol.GERENCIA: ["Tablero", "Unidades", "Alertas"],
     Rol.TECNICO: [],
 }
 

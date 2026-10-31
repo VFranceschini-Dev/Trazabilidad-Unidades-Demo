@@ -109,7 +109,7 @@ def listar(
     sesion: Session = Depends(get_session),
 ) -> list[UnidadOut]:
     unidades = service.listar_unidades(sesion, estados_unidad=estado, circuito=circuito, texto=q)
-    return [_out(sesion, u) for u in unidades]
+    return [_out(sesion, u) for u in service.filtrar_por_perfil(sesion, usuario, unidades)]
 
 
 @router.get("/recientes", response_model=list[AltaRecienteOut])
@@ -121,6 +121,7 @@ def recientes(
     return [
         AltaRecienteOut(id=u.id, patente=u.patente, fecha_hora=e.fecha_hora, origen=e.origen)
         for u, e in service.altas_recientes(sesion, limite)
+        if service.filtrar_por_perfil(sesion, usuario, [u])
     ]
 
 
@@ -146,7 +147,7 @@ def asignaciones(
     usuario: Any = Depends(obtener_usuario),
     sesion: Session = Depends(get_session),
 ) -> list[AsignacionHistorialOut]:
-    service.obtener_unidad(sesion, id_unidad)
+    service.verificar_acceso(sesion, usuario, service.obtener_unidad(sesion, id_unidad))
     filas = []
     for a in service.asignaciones_de(sesion, id_unidad):
         responsable = sesion.get(Usuario, a.id_responsable)
@@ -171,6 +172,7 @@ def ficha(
 ) -> FichaUnidadOut:
     """HU-07.1: estado, responsable actual, kilometraje, proximo service y limite de rotacion."""
     unidad = service.obtener_unidad(sesion, id_unidad)
+    service.verificar_acceso(sesion, usuario, unidad)
     resp = service.responsable_en(sesion, id_unidad, None)
     return FichaUnidadOut(
         unidad=_out(sesion, unidad),
@@ -193,7 +195,7 @@ def historial(
     sesion: Session = Depends(get_session),
 ) -> HistorialOut:
     """HU-07.2: eventos en orden cronologico inverso con fecha, hora, usuario y origen."""
-    service.obtener_unidad(sesion, id_unidad)
+    service.verificar_acceso(sesion, usuario, service.obtener_unidad(sesion, id_unidad))
     eventos = service.historial_eventos(sesion, id_unidad)
     return HistorialOut(id_unidad=id_unidad, eventos=[_evento_out(sesion, e) for e in eventos])
 
@@ -206,7 +208,7 @@ def responsable(
     sesion: Session = Depends(get_session),
 ) -> Optional[ResponsableOut]:
     """HU-07.4: responsable vigente en una fecha y hora; null si no hay ninguno."""
-    service.obtener_unidad(sesion, id_unidad)
+    service.verificar_acceso(sesion, usuario, service.obtener_unidad(sesion, id_unidad))
     resp = service.responsable_en(sesion, id_unidad, en)
     if resp is None:
         return None

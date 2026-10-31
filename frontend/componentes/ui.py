@@ -24,6 +24,7 @@ ZONA = ZoneInfo("America/Argentina/Buenos_Aires")
 P3 = "paginas/p3_ficha_historial.py"
 P4 = "paginas/p4_asignacion.py"
 P5 = "paginas/p5_prestamo_garantia.py"
+P6 = "paginas/p6_infracciones.py"
 P7 = "paginas/p7_registro_uso.py"
 P8 = "paginas/p8_alta_unidad.py"
 
@@ -33,6 +34,7 @@ MENU = (
     ("Unidades demo", P3, {"Unidades", "Mis unidades", "Service"}),
     ("Uso comercial", P7, {"Test drive"}),
     ("Préstamos Posventa", P5, {"Préstamos"}),
+    ("Infracciones", P6, {"Infracciones"}),
     ("Asignación", P4, {"Asignaciones"}),
     ("Alta de unidad", P8, {"Altas"}),
 )
@@ -42,8 +44,8 @@ ROLES = {
     "RESP_MKT_VENTAS": "Resp. Marketing y Ventas",
     "ASESOR": "Asesor comercial",
     "RESP_POSVENTA": "Resp. Posventa",
-    "TECNICO_TALLER": "Técnico de Taller",
-    "RESP_USADOS": "Resp. División Usados",
+    "ADMINISTRACION": "Administración",
+    "GERENCIA": "Gerencia",
 }
 
 CHIPS = {

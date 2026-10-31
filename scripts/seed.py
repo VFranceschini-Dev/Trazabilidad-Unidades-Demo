@@ -11,9 +11,11 @@ import os
 import secrets
 import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend"))
 
+from generar_actas import AR, DatosActa, pdf_nitido  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 
 from app.comercial.models import TipoUso  # noqa: E402
@@ -26,6 +28,11 @@ from app.identidad.models import Rol, Usuario  # noqa: E402
 from app.tablas_generales.models import Parametro, Sucursal  # noqa: E402
 from app.unidades.models import Circuito, UnidadDemo  # noqa: E402
 from app.posventa.service import ITEMS_CONTROL_PREVIO, registrar_devolucion, registrar_entrega  # noqa: E402
+from app.infracciones.esquemas import LecturaIn, ValidarIn  # noqa: E402
+from app.infracciones.models import Infraccion  # noqa: E402
+from app.infracciones.service import imputar as imputar_acta  # noqa: E402
+from app.infracciones.service import ingresar as ingresar_acta  # noqa: E402
+from app.infracciones.service import validar as validar_acta  # noqa: E402
 from app.unidades.models import EventoUnidad  # noqa: E402
 from app.unidades.service import alta_unidad, asignar  # noqa: E402
 
@@ -55,8 +62,8 @@ USUARIOS = [
     ("1008", "asesor.central@demo.local", "Carla Central", Rol.ASESOR, "SC01", "DEMO_CLAVE_ASESOR_CENTRAL", "DemoCentral2026!"),
     ("1009", "asesor.saenz@demo.local", "Sergio Saenz", Rol.ASESOR, "SC03", "DEMO_CLAVE_ASESOR_SAENZ", "DemoSaenz2026!"),
     ("1004", "posventa@demo.local", "Paula Posventa", Rol.RESP_POSVENTA, "SC01", "DEMO_CLAVE_POSVENTA", "DemoPosventa2026!"),
-    ("1005", "taller@demo.local", "Tomas Taller", Rol.TECNICO_TALLER, "SC03", "DEMO_CLAVE_TALLER", "DemoTaller2026!"),
-    ("1006", "usados@demo.local", "Uriel Usados", Rol.RESP_USADOS, "SC04", "DEMO_CLAVE_USADOS", "DemoUsados2026!"),
+    ("1010", "administracion.usuario@demo.local", "Adriana Administracion", Rol.ADMINISTRACION, "SC01", "DEMO_CLAVE_ADMINISTRACION", "DemoAdministracion2026!"),
+    ("1011", "gerencia@demo.local", "Gustavo Gerencia", Rol.GERENCIA, "SC01", "DEMO_CLAVE_GERENCIA", "DemoGerencia2026!"),
 ]
 
 # 15 unidades Ford del mercado argentino, repartidas entre circuitos
@@ -85,6 +92,8 @@ CLIENTES = [
     ("20222333445", "Juan Pérez Test", "jperez@example.com"),
 ]
 
+
+ACTA_IMPUTADA = "2026-090001"
 
 # Proximo service de las unidades de Posventa; AO015PQ queda vencida para mostrar el bloqueo (HU-05.2)
 PROXIMO_SERVICE = {"AK011LM": 25000, "AL012MN": 25000, "AM013NO": 30000, "AN014OP": 15000, "AO015PQ": 10500}
@@ -177,6 +186,38 @@ def sembrar_historia(sesion, ahora: datetime) -> None:
                 )
 
 
+def sembrar_acta_imputada(sesion, ahora: datetime) -> None:
+    """Acta imputada con vencimiento en menos de 5 dias, para la alerta MULTA_POR_VENCER (etapa 4)."""
+    if sesion.scalar(select(Infraccion.id_infraccion).where(Infraccion.nro_acta == ACTA_IMPUTADA)) is not None:
+        return
+    unidad = sesion.scalar(select(UnidadDemo).where(UnidadDemo.patente == "AE005FG"))
+    administracion = sesion.scalar(select(Usuario).where(Usuario.legajo == "1010"))
+    # Dentro de la gira de hace 5 dias de esta unidad (USOS)
+    momento = ahora - timedelta(days=5, hours=2)
+    vencimiento = ahora + timedelta(days=3)
+    pdf = pdf_nitido(
+        DatosActa(ACTA_IMPUTADA, unidad.patente, momento.astimezone(AR), "Municipalidad de Saenz Pena", "Calle 12 N 300, Saenz Pena", "132.500,00", vencimiento)
+    )
+    archivo = f"acta-semilla-{ACTA_IMPUTADA}.pdf"
+    Path(settings.actas_dir).mkdir(parents=True, exist_ok=True)
+    (Path(settings.actas_dir) / archivo).write_bytes(pdf)
+    lectura = LecturaIn(
+        archivo_pdf=archivo, nro_acta=ACTA_IMPUTADA, patente=unidad.patente, fecha_hora=momento, jurisdiccion="Municipalidad de Saenz Pena",
+        monto="132500.00", vencimiento=vencimiento.date(),
+        confianza_campos=dict.fromkeys(("nro_acta", "patente", "fecha_hora", "jurisdiccion", "monto", "vencimiento"), 99.0),
+    )
+    acta, _ = ingresar_acta(sesion, lectura)
+    validar_acta(
+        sesion, acta.id_infraccion,
+        ValidarIn(
+            nro_acta=ACTA_IMPUTADA, patente=unidad.patente, fecha_hora_infraccion=momento, jurisdiccion=acta.jurisdiccion,
+            monto=acta.monto, fecha_vencimiento=vencimiento.date(),
+        ),
+        administracion,
+    )
+    imputar_acta(sesion, acta.id_infraccion, administracion)
+
+
 class EntornoNoDemo(SystemExit):
     """La semilla se niega a correr fuera de ENTORNO=demo."""
 
@@ -261,6 +302,7 @@ def sembrar() -> None:
                 )
         sesion.flush()
         sembrar_historia(sesion, ahora)
+        sembrar_acta_imputada(sesion, ahora)
         sesion.commit()
         print("== semilla aplicada ==")
     finally:

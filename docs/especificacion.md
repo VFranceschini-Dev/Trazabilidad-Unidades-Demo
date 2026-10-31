@@ -224,3 +224,48 @@ Todas las operaciones que registran un movimiento aceptan `fecha_hora` opcional 
 | Método | Ruta | Uso |
 | --- | --- | --- |
 | GET | `/usos/mis-unidades` | Unidades a cargo del asesor, con la salida abierta si la hay (P7) |
+
+# Etapa 3 — circuito de infracciones
+
+## Modelo de datos de esta etapa
+
+| Tabla | Puntos clave |
+| --- | --- |
+| `infraccion` | `nro_acta` único, `patente_leida`, `fecha_hora_infraccion`, jurisdicción, monto NUMERIC(12,2), vencimiento, `archivo_pdf`, `confianza_ocr` y confianza por campo en JSONB, estado (PENDIENTE_VALIDACION, VALIDADA, IMPUTADA, PAGADA, RECHAZADA), `id_unidad` nulo, `id_resp_usuario` / `id_resp_cliente` con `CHECK` de que solo uno tenga valor, quién validó y cuándo |
+| `alerta` | tipo (ROTACION_VENCIDA, PRESTAMO_DEMORADO, SERVICE_PROXIMO, MULTA_POR_VENCER, ACTA_A_VALIDAR, DEVOLUCION_CON_DANOS, SIN_RESPONSABLE), referencia a unidad o acta, mensaje, estado, cierre con usuario, fecha y acción realizada; sin duplicar una alerta abierta del mismo tipo y referencia |
+
+Índices: `infraccion (estado)` e `infraccion (patente_leida)`.
+
+## API de esta etapa
+
+Prefijo `/api/v1`, documentación en `/api/v1/docs`. Toda ruta exige token y rol salvo `salud` y `auth/ingresar`. Errores con un formato común `{codigo, mensaje, detalle}`.
+
+| Método | Ruta | HU | Roles |
+| --- | --- | --- | --- |
+| POST | `/infracciones/ingesta` (multipart PDF) | HU-08 | usuario técnico de n8n (API key) |
+| GET | `/infracciones?estado=` · `/infracciones/{id}` · `/infracciones/{id}/pdf` | HU-09 | Administración |
+| PUT | `/infracciones/{id}/validar` · `/rechazar` | HU-09 | Administración |
+| GET | `/infracciones/{id}/sugerencia` | HU-10 | Administración |
+| POST | `/infracciones/{id}/imputar` · `/pagar` | HU-10 | Administración |
+| GET | `/salud` | — | público |
+
+## Circuito de actas (HU-08 a HU-10)
+
+**Flujo de n8n** (`n8n/flujo_actas.json`, importado al iniciar con la CLI de n8n):
+`IMAP Email Trigger` (casilla `administracion@demo.local` de GreenMail, cada minuto) → filtrar adjuntos PDF → `HTTP Request` multipart a `POST /api/v1/infracciones/ingesta` con la API key del usuario técnico → marcar el correo como leído. Si la API responde con error, el flujo reintenta tres veces y deja el correo sin leer.
+
+**Lectura del acta** (en el backend, `integraciones/ocr_tesseract.py`, detrás de la interfaz `LectorActas`):
+1. Si el PDF tiene capa de texto, extraerla con `pdfplumber` y asignar confianza 99 a lo que coincida.
+2. Si no, rasterizar con `pdf2image` a 300 ppp y pasar por Tesseract con `image_to_data`, idioma `spa`.
+3. Extraer cada campo con expresiones regulares tolerantes: número de acta, patente (formatos `AA 999 AA` y `AAA 999`, normalizada), fecha y hora, lugar o jurisdicción, monto (formato argentino `$ 185.400,00`) y vencimiento.
+4. La confianza de cada campo es el promedio de la confianza de las palabras que lo componen; la confianza general, el promedio de los campos encontrados.
+5. Idempotencia por `nro_acta`: si ya existe, responder `200` con la existente y no duplicar. Si no se pudo leer ningún dato, guardar el PDF igual, con estado PENDIENTE_VALIDACION y sin datos, para carga manual.
+6. Al registrar un acta se genera la alerta ACTA_A_VALIDAR.
+
+**Sugerencia de imputación (HU-10):** buscar la unidad por patente, llamar a `responsable_vigente` con la fecha y hora del acta, y consultar a Traccar la posición más cercana a ese instante (±15 minutos). Indicar si coincide con el lugar del acta comparando la localidad por geocodificación inversa simple (tabla de localidades de la demo con coordenadas) o, si no hay dato, informar "sin posición". Si no hay responsable identificable, imputar al responsable de la sucursal y generar la alerta SIN_RESPONSABLE.
+
+## Lectura de actas según el TFG
+
+Esta etapa se apartó del prompt anterior: la lectura corre en n8n (`n8n/lector_actas.py`) y la
+ingesta recibe en JSON los datos leídos y el nombre del PDF que n8n guardó en el volumen compartido.
+Ver `decisiones.md`.

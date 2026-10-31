@@ -94,14 +94,14 @@ def test_rol_desconocido_se_crea_como_asesor(sesion, fabrica_sesion, base) -> No
 def test_actualiza_datos_del_empleado(sesion, fabrica_sesion, base) -> None:
     emp = _empleado()
     sincronizar(sesion, DMSFalso([emp]), None)
-    cambiado = _reemplazar(emp, nombre="Otro Nombre", correo="nuevo.dms@pruebas.local", id_sucursal="SC03", rol="RESP_USADOS")
+    cambiado = _reemplazar(emp, nombre="Otro Nombre", correo="nuevo.dms@pruebas.local", id_sucursal="SC03", rol="GERENCIA")
     assert sincronizar(sesion, DMSFalso([cambiado]), None).actualizados == 1
     usuario = _usuario(fabrica_sesion, emp.legajo)
     assert (usuario.nombre, usuario.correo, usuario.id_sucursal, usuario.rol) == (
         "Otro Nombre",
         "nuevo.dms@pruebas.local",
         "SC03",
-        Rol.RESP_USADOS,
+        Rol.GERENCIA,
     )
 
 

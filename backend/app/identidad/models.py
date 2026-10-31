@@ -18,8 +18,8 @@ class Rol(str, Enum):
     RESP_MKT_VENTAS = "RESP_MKT_VENTAS"   # Responsable de Marketing y Ventas
     ASESOR = "ASESOR"                     # Asesor comercial
     RESP_POSVENTA = "RESP_POSVENTA"      # Responsable de Posventa
-    TECNICO_TALLER = "TECNICO_TALLER"    # Técnico de Taller
-    RESP_USADOS = "RESP_USADOS"           # Responsable de División Usados
+    ADMINISTRACION = "ADMINISTRACION"     # Administración (actas de infracción)
+    GERENCIA = "GERENCIA"                 # Gerencia (solo consulta)
     TECNICO = "TECNICO"                   # Usuario técnico (n8n, API key)
 
 

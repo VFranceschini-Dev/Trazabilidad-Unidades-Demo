@@ -1,0 +1,15 @@
+[
+  {
+    "id": "imapactasdemo001",
+    "name": "Casilla de actas (GreenMail)",
+    "type": "imap",
+    "data": {
+      "user": "administracion",
+      "password": "casilla-de-prueba",
+      "host": "mail",
+      "port": 3143,
+      "secure": false,
+      "allowUnauthorizedCerts": true
+    }
+  }
+]

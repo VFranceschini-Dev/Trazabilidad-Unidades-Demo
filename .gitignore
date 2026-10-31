@@ -1,5 +1,6 @@
 .env
 .env.local
+datos_demo/actas_prueba/
 *.env.*
 !.env.example
 __pycache__/

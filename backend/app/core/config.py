@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     bloqueo_minutos: int = 15
     validez_clave_temporal_horas: int = 48
 
+    actas_dir: str = "/actas"
+
     dms_api_url: str = "http://dms:8100"
     traccar_api_url: str = "http://traccar:8082"
     n8n_api_key: str = "cambiar_api_key_n8n"

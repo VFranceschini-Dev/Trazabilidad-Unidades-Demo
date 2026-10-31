@@ -66,8 +66,7 @@ inactiva. Una clave temporal emitida por recuperacion sigue exigiendo el cambio.
 El prompt nombra las variables `DEMO_CLAVE_*` y da como ejemplo `Demo-Gerencia-2026`. Se
 adopto el nombre de las variables pero se mantuvieron las claves ya documentadas en el
 README (`DemoMkt2026!`, etc.), que cumplen la politica. Si una variable falta, la semilla
-usa la clave del README. No existe un perfil "Gerencia": los seis perfiles son los de la
-Tabla 30 (`identidad.models.Rol`).
+usa la clave del README.
 
 ### Lista de contraseñas comunes
 
@@ -189,3 +188,57 @@ El codigo de esta etapa se reviso con `qwen3.8-flash`, enviando solo fragmentos 
 reglas de negocio, sin credenciales ni datos del TFG. Se aplicaron la correccion del bloqueo
 y la del service vencido. Se descartaron, entre otras, las validaciones de fecha diferida en
 la pantalla: `st.time_input` no admite limites y la API ya rechaza esas fechas con un mensaje.
+
+## Etapa 3 — circuito de infracciones
+
+### Perfiles alineados con la Tabla 30 (correccion)
+
+Hasta la etapa 2 el codigo tenia Tecnico de Taller y Resp. Division Usados, que el TFG no
+define, y le faltaban Administracion y Gerencia. Esta decision corrige tambien una afirmacion
+erronea de este documento ("no existe un perfil Gerencia"). La migracion `0005` deja inactivas
+las cuentas con los perfiles quitados. Division Usados sigue existiendo como sucursal. Tambien
+se aplica lo que la Tabla 30 dice sobre la consulta: el Asesor solo ve sus unidades y el
+Resp. Posventa, las de su circuito.
+
+### OCR y PDF en n8n, como dice el TFG
+
+El prompt ubica el OCR en el backend y una ingesta multipart. El TFG dice que n8n guarda el PDF, lo
+procesa con Tesseract y envia los datos a la API, y gana el TFG. El flujo guarda el adjunto en el
+volumen `actas_pdf` (`/actas`), ejecuta `n8n/lector_actas.py` y envia a `POST /infracciones/ingesta`
+los datos con el nombre del archivo. La API comparte el volumen solo para leer el PDF en P6 y borrar
+el repetido. n8n usa una imagen propia (`n8n/Dockerfile`) con Tesseract, poppler y Python.
+
+### Responsable del circuito cuando no hay responsable identificable
+
+HU-10.4 habla del responsable de la sucursal, dato que el modelo no tiene. Se imputa al primer
+usuario activo con el perfil del circuito: Resp. Marketing y Ventas (COMERCIAL) o Resp. Posventa
+(POSVENTA), y se genera la alerta `SIN_RESPONSABLE`.
+
+### Lectura del correo en n8n: se marca como leido al recibirlo
+
+El prompt pide dejar el correo sin leer si la API falla despues de tres reintentos. El nodo IMAP
+de n8n 1.53 marca el correo al leerlo y no hay un nodo para hacerlo despues, asi que ese caso no
+se cumple: un acta que falle los tres intentos queda como ejecucion con error en n8n y hay que
+reenviarla. Los reintentos si estan, y reenviar no duplica porque la ingesta es idempotente.
+
+### Vista del acta como imagen
+
+Streamlit 1.38 no trae visor de PDF. La API agrega `GET /infracciones/{id}/vista` con la primera
+pagina en PNG, y P6 permite ademas descargar el PDF original.
+
+### Corregir datos en la misma pantalla
+
+La referencia tiene un boton "Corregir datos". Aca los campos ya se editan mientras el acta esta
+pendiente, y al validarla quedan fijos. La validacion y la imputacion son dos pasos separados, como
+en HU-09 y HU-10. El aviso de baja confianza marca el rotulo, sin el borde de color de la referencia.
+
+### Posicion de Traccar
+
+La sugerencia informa "sin posición" hasta la etapa 4 (`integraciones/traccar.py`), asi que
+HU-10.2 todavia no esta cumplida.
+
+### Revision con Qwen
+
+Se reviso la imputacion y la ingesta con `qwen3.8-flash`. Se aplico el manejo de dos ingestas
+simultaneas del mismo numero. La revision de las expresiones regulares fallo por error del servicio
+y quedo sin hacer; esas expresiones se cubren con pruebas.

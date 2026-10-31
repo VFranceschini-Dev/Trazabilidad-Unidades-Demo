@@ -25,6 +25,7 @@ from app.core.excepciones import ErrorDominio
 from app.rutas_auth import router as router_auth
 from app.rutas_catalogos import router as router_catalogos
 from app.rutas_comercial import router as router_comercial
+from app.rutas_infracciones import router as router_infracciones
 from app.rutas_posventa import router as router_posventa
 from app.rutas_sincronizacion import router as router_sync
 from app.rutas_unidades import router as router_unidades
@@ -72,7 +73,7 @@ def _router_salud() -> APIRouter:
                 sesion.execute(text("SELECT 1"))
         except Exception:
             estado_db = "caido"
-        return {"estado": "ok" if estado_db == "ok" else "degradado", "base": estado_db, "etapa": 2}
+        return {"estado": "ok" if estado_db == "ok" else "degradado", "base": estado_db, "etapa": 3}
 
     return r
 
@@ -83,12 +84,13 @@ v1.include_router(router_auth)
 v1.include_router(router_catalogos)
 v1.include_router(router_comercial)
 v1.include_router(router_posventa)
+v1.include_router(router_infracciones)
 v1.include_router(router_unidades)
 v1.include_router(router_sync)
 
 app = FastAPI(
     title="Plataforma de Trazabilidad de Unidades Demo",
-    description="Prototipo TFG — operación diaria (etapa 2). Datos ficticios (Ley 25.326).",
+    description="Prototipo TFG — circuito de infracciones (etapa 3). Datos ficticios (Ley 25.326).",
     version="1.0.0",
     docs_url="/api/v1/docs",
     redoc_url=None,
@@ -100,7 +102,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origenes,
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT"],
     allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
 

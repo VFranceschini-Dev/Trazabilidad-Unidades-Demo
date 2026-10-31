@@ -9,12 +9,12 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core import estados
+from app.core import alertas, estados
 from app.core.auditoria import registrar as auditar
 from app.core.config import settings
 from app.core.excepciones import ErrorDominio, NoEncontrado
 from app.posventa.models import Prestamo
-from app.tablas_generales.models import Alerta, Cliente
+from app.tablas_generales.models import Cliente
 from app.unidades.models import Circuito, UnidadDemo
 from app.unidades.service import obtener_unidad_bloqueada, validar_carga_diferida
 
@@ -185,12 +185,11 @@ def registrar_devolucion(
     prestamo.id_usuario_recepcion = usuario.id
     unidad.km_actual = km_devolucion
     if con_danos:
-        sesion.add(
-            Alerta(
-                tipo_alerta="DEVOLUCION_CON_DANOS",
-                id_unidad=unidad.id,
-                mensaje=f"Devolución con daños de {unidad.patente}: {estado_devolucion}"[:200],
-            )
+        alertas.generar(
+            sesion,
+            "DEVOLUCION_CON_DANOS",
+            f"Devolución con daños de {unidad.patente}: {estado_devolucion}",
+            id_unidad=unidad.id,
         )
     sesion.flush()
     auditar(sesion, id_usuario=usuario.id, accion="PRESTAMO_DEVOLUCION", recurso=f"unidad:{unidad.id}", ip=ip, resultado="EXITO")
