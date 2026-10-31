@@ -103,3 +103,31 @@ referencias.
 Rutas de lectura agregadas para estas pantallas, no listadas en el prompt: `GET /unidades`,
 `/unidades/recientes`, `/unidades/limite-rotacion`, `/unidades/{id}/asignaciones`,
 `/sucursales` y `/responsables`.
+
+### Stack y estructura: diferencias con el prompt de la etapa 0
+
+- **JWT con PyJWT** en lugar de `python-jose`.
+- **Sincronizacion programada con una tarea `asyncio`** en `main.py` en lugar de APScheduler,
+  por ser la unica tarea programada de esta etapa.
+- **Rutas en `app/rutas_*.py`** y esquemas en `esquemas.py`, en lugar de `router.py` y
+  `schemas.py` por modulo. Los adaptadores del DMS estan en `sincronizacion/dms.py`, sin
+  carpeta `integraciones/`.
+- **Puerto 80 publicado en Nginx**, ademas del 443, para redirigir a HTTPS.
+- **ruff y mypy** todavia no estan configurados, aunque el prompt los pide en la etapa 0.
+
+### Objetivos del Makefile de etapas siguientes
+
+`actas`, `gps`, `capturas` y `paquete` existen porque los pide el prompt, pero sus scripts
+llegan en etapas posteriores: mientras tanto avisan y terminan sin error.
+
+### Recarga en modo desarrollo
+
+Streamlit solo invalida su cache de paginas y modulos si hay una sesion conectada al guardar.
+Con `RECARGA_DESARROLLO` (solo en `docker-compose.dev.yml`) `frontend/app.py` la limpia en cada
+ejecucion usando `Runtime.instance()._script_cache`, una API privada de Streamlit 1.38 que
+hay que revisar si se actualiza la version.
+
+### Imagen de n8n 1.53.2
+
+La etiqueta `1.53.4` del prompt de versiones no existe en Docker Hub y hacia fallar la
+instalacion limpia. Se usa `1.53.2`, la ultima publicada de esa version menor.

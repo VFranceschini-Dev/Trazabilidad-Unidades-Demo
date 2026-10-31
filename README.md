@@ -25,6 +25,8 @@ Otros objetivos del Makefile: `up`, `down`, `reset` (borra volúmenes), `seed`, 
 
 ## Usuarios de demo (solo con `ENTORNO=demo`; claves configurables con `DEMO_CLAVE_*`)
 
+Ninguna de estas cuentas exige cambiar la contraseña al primer ingreso (ver `docs/decisiones.md`).
+
 | Rol | Correo | Contraseña |
 | --- | --- | --- |
 | Administrador del sistema | admin@demo.local | `DemoAdmin2026!` |
@@ -49,8 +51,20 @@ sobre esa tabla; el rol dueño (`demo_migraciones`) ejecuta las migraciones.
 ## Estado del proyecto (por etapas)
 
 - **Etapa 0 — andamiaje y contenedores:** ✅ estructura, Compose con healthchecks, Nginx + certificado, Alembic inicial, esqueleto web.
-- **Etapa 1 — núcleo de trazabilidad:** ⏳ en curso (identidad, motor de estados, sincronización DMS, pantallas P1/P3/P4/P8).
+- **Etapa 1 — núcleo de trazabilidad:** ✅ identidad, motor de estados, sincronización DMS, pantallas P1, P2, P3, P4 y P8.
 - Etapas 2 a 5: infracciones/OCR, ubicación/GPS, préstamos y tablero, empaquetado final.
+
+## Desarrollo
+
+Sin `make` (por ejemplo, en Windows), con recarga automática y sin certificado:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db api web dms
+```
+
+Web en `http://localhost:8501` y API en `http://localhost:8000/api/v1/docs`. La primera vez,
+cargar los datos con `docker compose exec api python /srv/scripts/seed.py` (en Git Bash,
+anteponer `MSYS_NO_PATHCONV=1`).
 
 ## Pruebas
 

@@ -105,14 +105,14 @@ services:
     volumes:
       - datos_traccar:/opt/traccar/data
     healthcheck:
-      test: ["CMD-SHELL", "timeout 3 bash -c 'cat < /dev/null > /dev/tcp/localhost/8082' || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8082/api/server || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 30s
 
   n8n:
-    image: n8nio/n8n:1.53.4
+    image: n8nio/n8n:1.53.2
     ports:
       - "127.0.0.1:5678:5678"
     environment:
@@ -125,7 +125,7 @@ services:
       - datos_n8n:/home/node/.n8n
       - ./n8n:/flujos:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost:5678/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:5678/healthz || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12

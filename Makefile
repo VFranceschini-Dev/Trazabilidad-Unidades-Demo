@@ -9,7 +9,7 @@ demo: nginx-cert
 	$(COMPOSE) up -d --build
 	$(MAKE) migrar
 	$(MAKE) seed
-	$(MAKE) actas || true
+	$(MAKE) actas
 	@echo "== demo lista: https://localhost · https://localhost/api/v1/docs · http://localhost:5678 (n8n) =="
 
 up:
@@ -32,23 +32,29 @@ migrar:
 seed:
 	$(COMPOSE) exec -T api python /srv/scripts/seed.py
 
-## actas: genera y envia actas de prueba al buzon de n8n (se completa en etapa 2)
+## Objetivos de etapas siguientes: avisan y terminan bien mientras no exista su script
 actas:
-	$(COMPOSE) exec -T api python /srv/scripts/generar_actas.py
-	$(COMPOSE) exec -T api python /srv/scripts/enviar_actas.py
+	@if [ -f scripts/generar_actas.py ]; then \
+	  $(COMPOSE) exec -T api python /srv/scripts/generar_actas.py && \
+	  $(COMPOSE) exec -T api python /srv/scripts/enviar_actas.py; \
+	else echo "== actas: se agrega en la etapa de infracciones =="; fi
 
 gps:
-	$(COMPOSE) exec -T api python /srv/scripts/simular_gps.py
+	@if [ -f scripts/simular_gps.py ]; then \
+	  $(COMPOSE) exec -T api python /srv/scripts/simular_gps.py; \
+	else echo "== gps: se agrega en la etapa de ubicacion =="; fi
 
 ## test: suite completa dentro de Docker (perfil test) contra Postgres efimero del servicio db
 test:
 	$(COMPOSE) --profile test run --rm test
 
 capturas:
-	python scripts/capturas.py
+	@if [ -f scripts/capturas.py ]; then python scripts/capturas.py; \
+	else echo "== capturas: se agrega en la etapa de empaquetado =="; fi
 
 paquete:
-	python scripts/empaquetar.py
+	@if [ -f scripts/empaquetar.py ]; then python scripts/empaquetar.py; \
+	else echo "== paquete: se agrega en la etapa de empaquetado =="; fi
 
 logs:
 	$(COMPOSE) logs -f --tail=100

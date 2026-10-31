@@ -9,13 +9,9 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
   -v app_user="${DEMO_DB_APP_USER:-demo_app}" \
   -v app_pw="${DEMO_DB_APP_PASSWORD}" \
   -v db="$POSTGRES_DB" <<'SQL'
-DO $body$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'app_user') THEN
-    EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', :'app_user', :'app_pw');
-  END IF;
-END
-$body$;
+-- psql no reemplaza :'variables' dentro de un bloque $body$: se arma la orden y se ejecuta con \gexec
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'app_user', :'app_pw')
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'app_user') \gexec
 
 GRANT CONNECT ON DATABASE :db TO :app_user;
 GRANT USAGE ON SCHEMA public TO :app_user;
