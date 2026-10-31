@@ -7,6 +7,7 @@ usuarios compartidos del fixture `base`: el login modifica intentos, bloqueos y 
 from __future__ import annotations
 
 import itertools
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -15,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.identidad.models import Rol, Usuario
+from app.identidad.models import Rol, TokenRecuperacion, Usuario
 from app.unidades.models import Circuito, UnidadDemo
 
 CLAVE = "Demo-Pruebas-2026!"
@@ -215,23 +216,141 @@ def test_recuperar_no_revela_si_el_correo_existe(client, sesion, hash_pruebas) -
     assert existe.json() == no_existe.json()
 
 
-def test_recuperar_emite_clave_temporal_y_desbloquea(client, sesion, fabrica_sesion, hash_pruebas) -> None:
+CLAVE_NUEVA = "Nueva-Clave-2026"
+
+
+@pytest.fixture
+def correos(monkeypatch) -> list[tuple[str, str, str]]:
+    enviados: list[tuple[str, str, str]] = []
+    monkeypatch.setattr("app.core.correo.enviar", lambda *m: enviados.append(m) or True)
+    return enviados
+
+
+def _pedir_enlace(client: Any, correo: str, correos: list[tuple[str, str, str]]) -> str:
+    assert client.post("/api/v1/auth/recuperar", json={"correo": correo}).status_code == 200
+    return re.search(r"restablecer=(\S+)", correos[-1][2]).group(1)
+
+
+def _restablecer(client: Any, token: str, clave: str = CLAVE_NUEVA) -> Any:
+    return client.post("/api/v1/auth/restablecer", json={"token": token, "clave_nueva": clave})
+
+
+def test_pedir_enlace_no_cambia_la_clave_vigente(client, sesion, hash_pruebas, correos) -> None:
     usuario = _crear_usuario(sesion, hash_pruebas)
-    usuario.intentos_fallidos = 3
+    _pedir_enlace(client, usuario.correo, correos)
+    assert correos[0][0] == usuario.correo
+    assert _ingresar(client, usuario.correo).status_code == 200
+
+
+def test_restablecer_reemplaza_la_clave_y_es_de_un_solo_uso(client, sesion, fabrica_sesion, hash_pruebas, correos) -> None:
+    usuario = _crear_usuario(sesion, hash_pruebas, debe_cambiar_clave=True)
     usuario.bloqueado_hasta = datetime.now(timezone.utc) + timedelta(minutes=10)
     sesion.commit()
-    client.post("/api/v1/auth/recuperar", json={"correo": usuario.correo})
+    token = _pedir_enlace(client, usuario.correo, correos)
+    assert _restablecer(client, token).status_code == 200
     recargado = _recargar(fabrica_sesion, usuario.id)
-    assert recargado.debe_cambiar_clave is True
-    assert recargado.intentos_fallidos == 0
+    assert recargado.debe_cambiar_clave is False
     assert recargado.bloqueado_hasta is None
-    assert recargado.clave_temporal_hasta is not None
-    # La clave anterior deja de servir: solo vale la temporal (no se revela por respuesta).
+    assert recargado.clave_cambiada_en is not None
     assert _ingresar(client, usuario.correo).status_code == 401
+    assert _ingresar(client, usuario.correo, CLAVE_NUEVA).status_code == 200
+
+    r = _restablecer(client, token, "Otra-Clave-2026")
+    assert r.status_code == 400
+    assert _error(r)["codigo"] == "ENLACE_INVALIDO"
+
+
+def test_restablecer_cierra_todas_las_sesiones(client, sesion, hash_pruebas, correos) -> None:
+    usuario = _crear_usuario(sesion, hash_pruebas)
+    cabeceras = _token(client, usuario.correo)
+    assert client.get("/api/v1/yo", headers=cabeceras).status_code == 200
+    assert _restablecer(client, _pedir_enlace(client, usuario.correo, correos)).status_code == 200
+    r = client.get("/api/v1/yo", headers=cabeceras)
+    assert r.status_code == 401
+    assert _error(r)["codigo"] == "SESION_INVALIDADA"
+
+
+def test_enlace_vence_a_los_30_minutos(client, sesion, fabrica_sesion, hash_pruebas, correos) -> None:
+    usuario = _crear_usuario(sesion, hash_pruebas)
+    token = _pedir_enlace(client, usuario.correo, correos)
+    with fabrica_sesion() as ses:
+        fila = ses.scalar(select(TokenRecuperacion).where(TokenRecuperacion.id_usuario == usuario.id))
+        faltan = fila.vence_en - datetime.now(timezone.utc)
+        assert timedelta(minutes=29) < faltan <= timedelta(minutes=30)
+        fila.vence_en = datetime.now(timezone.utc) - timedelta(seconds=1)
+        ses.commit()
+    assert _restablecer(client, token).status_code == 400
+
+
+def test_solo_se_guarda_el_hash_del_enlace(client, sesion, fabrica_sesion, hash_pruebas, correos) -> None:
+    usuario = _crear_usuario(sesion, hash_pruebas)
+    token = _pedir_enlace(client, usuario.correo, correos)
+    with fabrica_sesion() as ses:
+        fila = ses.scalar(select(TokenRecuperacion).where(TokenRecuperacion.id_usuario == usuario.id))
+        assert fila.hash_token != token
+        assert len(fila.hash_token) == 64
+
+
+def test_un_enlace_nuevo_anula_el_anterior(client, sesion, hash_pruebas, correos) -> None:
+    usuario = _crear_usuario(sesion, hash_pruebas)
+    primero = _pedir_enlace(client, usuario.correo, correos)
+    segundo = _pedir_enlace(client, usuario.correo, correos)
+    assert _restablecer(client, primero).status_code == 400
+    assert _restablecer(client, segundo).status_code == 200
+
+
+def test_cambiar_la_clave_anula_el_enlace_pendiente(client, sesion, hash_pruebas, correos) -> None:
+    usuario = _crear_usuario(sesion, hash_pruebas)
+    token = _pedir_enlace(client, usuario.correo, correos)
+    r = client.post("/api/v1/auth/cambiar-clave", json={"clave_nueva": "Otra-Clave-2026"}, headers=_token(client, usuario.correo))
+    assert r.status_code == 200
+    assert _restablecer(client, token).status_code == 400
+
+
+def test_limite_de_enlaces_por_hora_sin_revelarlo(client, sesion, hash_pruebas, correos) -> None:
+    usuario = _crear_usuario(sesion, hash_pruebas)
+    respuestas = [client.post("/api/v1/auth/recuperar", json={"correo": usuario.correo}) for _ in range(4)]
+    assert len(correos) == settings.enlaces_por_hora == 3
+    assert respuestas[0].json() == respuestas[3].json()
+    assert respuestas[3].status_code == 200
+
+
+def test_clave_que_no_cumple_la_politica_no_consume_el_enlace(client, sesion, hash_pruebas, correos) -> None:
+    usuario = _crear_usuario(sesion, hash_pruebas)
+    token = _pedir_enlace(client, usuario.correo, correos)
+    assert _restablecer(client, token, "sinmayusculas1").status_code == 422
+    assert _restablecer(client, token).status_code == 200
+
+
+def test_cuenta_inactiva_no_recibe_enlace_ni_lo_usa(client, sesion, hash_pruebas, correos) -> None:
+    usuario = _crear_usuario(sesion, hash_pruebas)
+    token = _pedir_enlace(client, usuario.correo, correos)
+    usuario.activo = False
+    sesion.commit()
+    assert _restablecer(client, token).status_code == 400
+    cantidad = len(correos)
+    client.post("/api/v1/auth/recuperar", json={"correo": usuario.correo})
+    assert len(correos) == cantidad
+
+
+def test_correo_con_mayusculas_recibe_el_enlace(client, sesion, hash_pruebas, correos) -> None:
+    usuario = _crear_usuario(sesion, hash_pruebas)
+    client.post("/api/v1/auth/recuperar", json={"correo": f"  {usuario.correo.upper()} "})
+    assert correos[0][0] == usuario.correo
+
+
+def test_correo_caido_responde_igual_y_no_registra_el_enlace(client, sesion, hash_pruebas, monkeypatch, capsys) -> None:
+    def falla(*_: Any, **__: Any) -> None:
+        raise OSError("sin servidor")
+
+    monkeypatch.setattr("smtplib.SMTP", falla)
+    usuario = _crear_usuario(sesion, hash_pruebas)
+    assert client.post("/api/v1/auth/recuperar", json={"correo": usuario.correo}).status_code == 200
+    assert "restablecer=" not in capsys.readouterr().out
 
 
 def test_clave_temporal_vencida_no_permite_ingresar(client, sesion, hash_pruebas) -> None:
-    """HU-01: la contraseña temporal de recuperacion vale 48 h."""
+    """HU-01: la contraseña temporal vale 48 h."""
     usuario = _crear_usuario(sesion, hash_pruebas, debe_cambiar_clave=True)
     usuario.clave_temporal_hasta = datetime.now(timezone.utc) - timedelta(minutes=1)
     sesion.commit()

@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import hashlib
+import secrets
+import string
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.core import auditoria, seguridad
 from app.core.config import settings
 from app.core.excepciones import ErrorDominio
-from app.identidad.models import Rol, Usuario
+from app.identidad.models import Rol, TokenRecuperacion, Usuario
 
 
 def _ahora() -> datetime:
@@ -79,7 +82,7 @@ def ingresar(sesion: Session, correo: str, clave: str, ip: Optional[str], reques
     usuario.ultima_actividad = _ahora()
     auditoria.registrar(sesion, id_usuario=usuario.id, accion="LOGIN_OK", recurso="auth", ip=ip, resultado="EXITO")
     sesion.commit()
-    token = seguridad.crear_token(usuario.id, usuario.rol.value)
+    token = seguridad.crear_token(usuario.id, usuario.rol.value, usuario.version_sesion)
     return {
         "token": token,
         "debe_cambiar_clave": usuario.debe_cambiar_clave,
@@ -97,31 +100,100 @@ def cambiar_clave(sesion: Session, usuario: Usuario, clave_nueva: str, ip: Optio
     usuario.hash_clave = seguridad.hash_clave(clave_nueva)
     usuario.debe_cambiar_clave = False
     usuario.clave_temporal_hasta = None
+    usuario.clave_cambiada_en = _ahora()
+    # Un enlace pedido antes del cambio ya no debe poder pisar la clave nueva
+    _anular_enlaces(sesion, usuario.id)
     auditoria.registrar(sesion, id_usuario=usuario.id, accion="CAMBIO_CLAVE", recurso="auth", ip=ip, resultado="EXITO")
     sesion.commit()
 
 
-def recuperar(sesion: Session, correo: str, ip: Optional[str]) -> None:
-    """Emite una contraseña temporal de un uso valida 48 h (sin revelarla por respuesta)."""
-    usuario = obtener_por_correo(sesion, correo)
-    if usuario is not None and usuario.activo:
-        import secrets
-        import string
+def generar_clave_temporal() -> str:
+    """Clave de un solo uso para una cuenta nueva: se reemplaza en el primer ingreso."""
+    alfabeto = string.ascii_letters + string.digits + "!@#$%"
+    return "".join(secrets.choice(alfabeto) for _ in range(14))
 
-        alfabeto = string.ascii_letters + string.digits + "!@#$%"
-        temporal = "".join(secrets.choice(alfabeto) for _ in range(14))
-        usuario.hash_clave = seguridad.hash_clave(temporal)
-        usuario.debe_cambiar_clave = True
-        usuario.clave_temporal_hasta = _ahora() + timedelta(hours=settings.validez_clave_temporal_horas)
-        usuario.intentos_fallidos = 0
-        usuario.bloqueado_hasta = None
-        # En la demo el envio de correo esta fuera de alcance: la clave se comunicaria
-        # por canal corporativo. Ver docs/decisiones.md.
-        auditoria.registrar(sesion, id_usuario=usuario.id, accion="RECUPERAR_CLAVE", recurso="auth", ip=ip, resultado="EXITO")
-        sesion.commit()
-    else:
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _anular_enlaces(sesion: Session, id_usuario: int) -> None:
+    sesion.execute(
+        update(TokenRecuperacion)
+        .where(TokenRecuperacion.id_usuario == id_usuario, TokenRecuperacion.usado_en.is_(None))
+        .values(usado_en=_ahora())
+    )
+
+
+def _cuenta_habilitada(usuario: Optional[Usuario]) -> bool:
+    return usuario is not None and usuario.activo and (not usuario.es_demo or settings.entorno == "demo")
+
+
+def recuperar(sesion: Session, correo: str, ip: Optional[str]) -> Optional[tuple[str, str, str]]:
+    """Crea un enlace de un solo uso sin tocar la clave vigente. Devuelve el correo a enviar, si corresponde."""
+    usuario = sesion.scalar(select(Usuario).where(Usuario.correo == correo.lower().strip()).with_for_update())
+    if not _cuenta_habilitada(usuario):
         auditoria.registrar(sesion, id_usuario=None, accion="RECUPERAR_CLAVE", recurso="auth", ip=ip, resultado="FRACASO")
         sesion.commit()
+        return None
+
+    recientes = sesion.scalar(
+        select(func.count())
+        .select_from(TokenRecuperacion)
+        .where(TokenRecuperacion.id_usuario == usuario.id, TokenRecuperacion.creado_en > _ahora() - timedelta(hours=1))
+    )
+    if recientes >= settings.enlaces_por_hora:
+        auditoria.registrar(sesion, id_usuario=usuario.id, accion="RECUPERAR_CLAVE", recurso="auth", ip=ip, resultado="FRACASO")
+        sesion.commit()
+        return None
+
+    _anular_enlaces(sesion, usuario.id)  # solo vale el ultimo enlace pedido
+    token = secrets.token_urlsafe(32)
+    sesion.add(
+        TokenRecuperacion(
+            id_usuario=usuario.id,
+            hash_token=_hash_token(token),
+            vence_en=_ahora() + timedelta(minutes=settings.validez_enlace_minutos),
+        )
+    )
+    auditoria.registrar(sesion, id_usuario=usuario.id, accion="RECUPERAR_CLAVE", recurso="auth", ip=ip, resultado="EXITO")
+    sesion.commit()
+    return (
+        usuario.correo,
+        "Restablecer contraseña — Parque Demo",
+        f"Para elegir una contraseña nueva, abra este enlace:\n\n{settings.url_publica}/?restablecer={token}\n\n"
+        f"Vence a los {settings.validez_enlace_minutos} minutos y se puede usar una sola vez. "
+        "Si usted no lo pidió, ignore este mensaje: su contraseña no cambió.",
+    )
+
+
+def restablecer(sesion: Session, token: str, clave_nueva: str, ip: Optional[str]) -> None:
+    """Consume el enlace, reemplaza la clave y cierra todas las sesiones de la cuenta."""
+    fila = sesion.scalar(select(TokenRecuperacion).where(TokenRecuperacion.hash_token == _hash_token(token)))
+    usuario = None
+    if fila is not None:
+        # Primero el usuario, en el mismo orden que recuperar(): evita bloqueos cruzados y serializa el uso del enlace
+        usuario = sesion.scalar(select(Usuario).where(Usuario.id == fila.id_usuario).with_for_update())
+        sesion.refresh(fila)
+    if fila is None or fila.usado_en is not None or fila.vence_en < _ahora() or not _cuenta_habilitada(usuario):
+        auditoria.registrar(sesion, id_usuario=None, accion="RESTABLECER_CLAVE", recurso="auth", ip=ip, resultado="FRACASO")
+        sesion.commit()
+        raise ErrorDominio(
+            codigo="ENLACE_INVALIDO",
+            mensaje="El enlace no es válido o venció. Solicite uno nuevo.",
+            estado_http=400,
+        )
+    seguridad.validar_politica_clave(clave_nueva, correo=usuario.correo, nombre=usuario.nombre)
+    usuario.hash_clave = seguridad.hash_clave(clave_nueva)
+    usuario.debe_cambiar_clave = False
+    usuario.clave_temporal_hasta = None
+    usuario.clave_cambiada_en = _ahora()
+    usuario.intentos_fallidos = 0
+    usuario.bloqueado_hasta = None
+    usuario.version_sesion += 1
+    _anular_enlaces(sesion, usuario.id)
+    auditoria.registrar(sesion, id_usuario=usuario.id, accion="RESTABLECER_CLAVE", recurso="auth", ip=ip, resultado="EXITO")
+    sesion.commit()
 
 
 def salir(sesion: Session, usuario: Usuario, ip: Optional[str]) -> None:

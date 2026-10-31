@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     intentos_maximos: int = 5
     bloqueo_minutos: int = 15
     validez_clave_temporal_horas: int = 48
+    validez_enlace_minutos: int = 30
+    enlaces_por_hora: int = 3
+
+    smtp_host: str = "mail"
+    smtp_port: int = 3025
+    correo_remitente: str = "sistemas@demo.local"
+    url_publica: str = "https://localhost"
 
     actas_dir: str = "/actas"
 

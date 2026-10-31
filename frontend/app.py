@@ -32,6 +32,7 @@ PAGINAS = [
     st.Page("paginas/p8_alta_unidad.py", title="Alta de unidad"),
     st.Page("paginas/p9_alertas.py", title="Alertas"),
     st.Page("paginas/p10_pase_venta.py", title="Pase a venta y baja"),
+    st.Page("paginas/p11_restablecer_clave.py", title="Restablecer contraseña"),
 ]
 
 st.navigation(PAGINAS, position="hidden").run()

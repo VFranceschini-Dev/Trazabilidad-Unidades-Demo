@@ -43,3 +43,19 @@ class Usuario(Base):
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora_utc)
     # Cuenta de demostracion: solo ingresa con ENTORNO=demo (ver docs/decisiones.md)
     es_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Va en el token: al restablecer la clave se incrementa y se cierran todas las sesiones
+    version_sesion: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    clave_cambiada_en: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class TokenRecuperacion(Base):
+    """Enlace de recuperacion de un solo uso: solo se guarda el hash del codigo."""
+
+    __tablename__ = "token_recuperacion"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id_usuario: Mapped[int] = mapped_column(ForeignKey("usuario.id"), index=True)
+    hash_token: Mapped[str] = mapped_column(String(64), unique=True)
+    vence_en: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    usado_en: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora_utc)

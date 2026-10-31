@@ -146,7 +146,7 @@ Prefijo `/api/v1`, documentación en `/api/v1/docs`. Toda ruta exige token y rol
 
 | Método | Ruta | HU | Roles |
 | --- | --- | --- | --- |
-| POST | `/auth/ingresar` · `/auth/salir` · `/auth/cambiar-clave` · `/auth/recuperar` | HU-01 | público / autenticado |
+| POST | `/auth/ingresar` · `/auth/salir` · `/auth/cambiar-clave` · `/auth/recuperar` · `/auth/restablecer` | HU-01 | público / autenticado |
 | GET | `/yo` (usuario, rol, menú permitido) | HU-01 | autenticado |
 | POST | `/unidades` | HU-02 | Resp. Marketing y Ventas (COMERCIAL), Resp. Posventa (POSVENTA) |
 | GET | `/unidades/{id}` · `/unidades/{id}/historial` · `/unidades/{id}/responsable?en=` | HU-07 | lectura según perfil |

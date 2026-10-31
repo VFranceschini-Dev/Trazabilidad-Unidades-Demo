@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 COMPOSE := docker compose
 
-.PHONY: demo up down reset seed migrar actas gps test capturas paquete logs nginx-cert
+.PHONY: demo up down reset seed migrar actas gps correo test capturas paquete logs nginx-cert
 
 ## demo: todo desde cero (.env + certificado + build + up + migrar + seed + actas)
 demo: nginx-cert
@@ -42,6 +42,10 @@ actas:
 
 gps:
 	$(COMPOSE) exec -T api python /srv/scripts/simular_gps.py
+
+## correo: ultimos correos de la demo. Uso: make correo PARA=mkt@demo.local
+correo:
+	$(COMPOSE) exec -T api python /srv/scripts/ver_correo.py $(PARA)
 
 ## test: suite completa dentro de Docker (perfil test) contra Postgres efimero del servicio db
 test:

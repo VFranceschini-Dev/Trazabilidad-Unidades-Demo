@@ -41,6 +41,11 @@ class RecuperarIn(BaseModel):
     correo: str
 
 
+class RestablecerIn(BaseModel):
+    token: str = Field(min_length=1)
+    clave_nueva: str = Field(min_length=10)
+
+
 class YoOut(BaseModel):
     usuario: UsuarioOut
     sucursal_nombre: Optional[str] = None

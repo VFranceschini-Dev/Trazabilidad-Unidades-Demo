@@ -287,3 +287,23 @@ porque la Tabla 30 le da las fichas de todas las sucursales.
 Qwen propuso casos limite, que se sumaron a las pruebas, y el borrador de `recorrido` del simulador,
 completado aqui porque llego cortado. De sus revisiones se aplicaron el filtro de circuito en las alertas
 de P2 y guardar el acta solo al ir a P6. El resto no aplicaba al codigo real.
+
+## Correcciones de la revision contra el TFG
+
+### Recuperacion de contraseña y clave temporal
+
+Corrige lo anterior, que emitia una clave temporal que no llegaba a nadie y dejaba la cuenta sin acceso.
+Como pide el TFG: enlace de un solo uso que vence a los 30 minutos; al restablecer se cierran todas las
+sesiones (`version_sesion` en el usuario y en el token). Las cuentas nuevas del DMS reciben una clave
+temporal de 48 horas por correo. Si ese envio falla, la persona puede pedir el enlace. El correo llega a
+GreenMail, sin casillas reales, y se lee con `make correo PARA=...`. Las cuentas `es_demo` tambien pueden
+recuperar la clave, y entonces deja de coincidir con la del README.
+
+Agregados que el TFG no pide: un limite de 3 enlaces por cuenta por hora, sin IP ni espera creciente; pedir
+un enlace anula el anterior; el enlace entra por la raiz con `?restablecer=`, y el codigo se quita de la
+barra de direcciones al llegar. `clave_cambiada_en` queda lista para la renovacion cada 180 dias, todavia
+pendiente. El bloqueo de la cuenta se levanta al restablecer, porque el enlace prueba el acceso al correo.
+
+Con Qwen se coincidio en la tabla con hash, la version de sesion y la respuesta generica. No se aplico su
+valor secreto adicional para el hash, porque el codigo ya es aleatorio y largo, ni el enlace para cuentas
+nuevas en produccion, porque el TFG pide clave temporal.

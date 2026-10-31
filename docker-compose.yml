@@ -34,6 +34,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mail:
+        condition: service_started
     volumes:
       - ./scripts:/srv/scripts:ro
       - ./datos_demo:/srv/datos_demo

@@ -21,7 +21,7 @@ make demo              # levanta todo, migra, siembra y genera actas de prueba
 | `http://localhost:8082` | Traccar (posiciones GPS simuladas) |
 
 Otros objetivos del Makefile: `up`, `down`, `reset` (borra volúmenes), `seed`, `actas`, `gps`,
-`test`, `capturas`, `paquete`, `logs`.
+`correo`, `test`, `capturas`, `paquete`, `logs`.
 
 ## Usuarios de demo (solo con `ENTORNO=demo`; claves configurables con `DEMO_CLAVE_*`)
 
@@ -91,6 +91,15 @@ docker compose exec -T api python /srv/scripts/enviar_actas.py
 
 n8n las lee en menos de un minuto y quedan en **Infracciones** (usuario de Administración). Un acta
 repite su número y no se duplica; otra es ilegible y queda para carga manual.
+
+## Correo de la demo
+
+Los enlaces de recuperación y las claves temporales llegan a GreenMail, nunca a una casilla real.
+`make correo PARA=mkt@demo.local` los muestra. Sin `make`:
+
+```bash
+docker compose exec -T api python /srv/scripts/ver_correo.py mkt@demo.local
+```
 
 ## Pruebas
 

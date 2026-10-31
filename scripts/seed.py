@@ -268,9 +268,11 @@ def sembrar() -> None:
                         es_demo=True,
                     )
                 )
-            elif not existente.es_demo:  # cuentas creadas antes de existir es_demo
+            elif not existente.es_demo:  # creadas por la sincronizacion antes de sembrar, con clave temporal
                 existente.es_demo = True
                 existente.debe_cambiar_clave = False
+                existente.clave_temporal_hasta = None
+                existente.hash_clave = hash_clave(os.environ.get(var_env) or clave_readme)
         # usuario tecnico n8n: autenticado solo por API key; clave aleatoria que nadie conoce
         if sesion.scalar(select(Usuario).where(Usuario.legajo == "9000")) is None:
             sesion.add(

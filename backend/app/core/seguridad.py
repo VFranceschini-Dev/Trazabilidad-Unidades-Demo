@@ -78,11 +78,12 @@ def validar_politica_clave(clave: str, *, correo: str = "", nombre: str = "") ->
         )
 
 
-def crear_token(id_usuario: int, rol: str) -> str:
+def crear_token(id_usuario: int, rol: str, version_sesion: int = 0) -> str:
     ahora = datetime.now(timezone.utc)
     payload: dict[str, Any] = {
         "sub": str(id_usuario),
         "rol": rol,
+        "sv": version_sesion,
         "iat": ahora,
         "exp": ahora + timedelta(hours=settings.duracion_token_horas),
     }
@@ -117,6 +118,13 @@ def _usuario_autenticado(sesion: Session, token: str) -> Any:
         raise ErrorDominio(
             codigo="USUARIO_INVALIDO",
             mensaje="El usuario no está activo.",
+            detalle=None,
+            estado_http=401,
+        )
+    if datos.get("sv", 0) != usuario.version_sesion:
+        raise ErrorDominio(
+            codigo="SESION_INVALIDADA",
+            mensaje="La sesión se cerró porque se restableció la contraseña.",
             detalle=None,
             estado_http=401,
         )

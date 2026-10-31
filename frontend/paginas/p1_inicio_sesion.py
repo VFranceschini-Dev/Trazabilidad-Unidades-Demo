@@ -16,6 +16,12 @@ st.set_page_config(page_title="Ingreso — Parque Demo", layout="centered", page
 inyectar_estilos()
 logo_ingreso()
 
+# El enlace del correo entra por la raiz; el codigo sale de la barra de direcciones enseguida
+if "restablecer" in st.query_params:
+    st.session_state["token_restablecer"] = st.query_params["restablecer"]
+    st.query_params.clear()
+    st.switch_page("paginas/p11_restablecer_clave.py")
+
 if st.session_state.get("token"):
     st.switch_page("paginas/p2_tablero.py")
 
@@ -54,10 +60,12 @@ if enviado:
 
 st.markdown("---")
 st.caption("Recuperar contraseña · Datos ficticios de demostración (Ley 25.326)")
-recuperar = st.button("¿Olvidó su contraseña?", use_container_width=False)
-if recuperar:
+with st.expander("¿Olvidó su contraseña?"):
     with st.form("recuperar"):
-        correo_rec = st.text_input("Correo corporativo")
+        correo_rec = st.text_input("Correo corporativo", key="correo_recuperar")
         if st.form_submit_button("Enviar solicitud"):
-            _, cuerpo = post("/auth/recuperar", {"correo": correo_rec})
-            st.info("Si el correo existe, se emitió una contraseña temporal válida 48 h.")
+            estado, cuerpo = post("/auth/recuperar", {"correo": correo_rec})
+            if estado == 200:
+                st.info("Si el correo existe, le enviamos un enlace válido por 30 minutos.")
+            else:
+                st.error(detalle_error(cuerpo))

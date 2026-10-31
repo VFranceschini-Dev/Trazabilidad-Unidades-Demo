@@ -12,14 +12,17 @@ Las unidades del DMS que no existen aun se dan de alta a traves del motor de est
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core import auditoria, estados, logs
+from app.core import auditoria, correo, estados, logs, seguridad
+from app.core.config import settings
 from app.core.excepciones import ErrorDominio
 from app.identidad.models import Rol, Usuario
+from app.identidad.service import generar_clave_temporal
 from app.sincronizacion.dms import DMSAdapter, EmpleadoDMS, ErrorDMS, UnidadDMS
 from app.unidades.models import Circuito
 from app.unidades.service import alta_unidad
@@ -36,9 +39,12 @@ class ResultadoSync:
     detalle: list[str] = field(default_factory=list)
 
 
-def _sincronizar_empleado(sesion: Session, emp: EmpleadoDMS, resultado: ResultadoSync) -> None:
+def _sincronizar_empleado(
+    sesion: Session, emp: EmpleadoDMS, resultado: ResultadoSync, temporales: list[tuple[str, str]]
+) -> None:
     existente = sesion.scalar(select(Usuario).where(Usuario.legajo == emp.legajo))
     if existente is None:
+        temporal = generar_clave_temporal()
         sesion.add(
             Usuario(
                 legajo=emp.legajo,
@@ -47,10 +53,13 @@ def _sincronizar_empleado(sesion: Session, emp: EmpleadoDMS, resultado: Resultad
                 rol=Rol[emp.rol] if emp.rol in Rol.__members__ else Rol.ASESOR,
                 id_sucursal=emp.id_sucursal,
                 activo=emp.activo,
-                hash_clave="",  # sin clave hasta recuperacion (HU-01)
+                hash_clave=seguridad.hash_clave(temporal),
                 debe_cambiar_clave=True,
+                clave_temporal_hasta=datetime.now(timezone.utc) + timedelta(hours=settings.validez_clave_temporal_horas),
             )
         )
+        if emp.activo:
+            temporales.append((emp.correo, temporal))
         resultado.creados += 1
         resultado.detalle.append(f"alta legajo {emp.legajo}")
         return
@@ -111,8 +120,9 @@ def sincronizar(sesion: Session, adaptador: DMSAdapter, usuario: Any) -> Resulta
         logs.log_evento("sync.dms", estado="fracaso", motivo=str(exc)[:200])
         return resultado
 
+    temporales: list[tuple[str, str]] = []
     for emp in empleados:
-        _sincronizar_empleado(sesion, emp, resultado)
+        _sincronizar_empleado(sesion, emp, resultado, temporales)
     sesion.flush()
 
     for uni in unidades:
@@ -120,6 +130,15 @@ def sincronizar(sesion: Session, adaptador: DMSAdapter, usuario: Any) -> Resulta
 
     auditoria.registrar(sesion, id_usuario=id_usuario, accion="SYNC_DMS", recurso="dms", ip=None, resultado="EXITO")
     sesion.commit()
+    # Despues del commit: si este envio falla, la persona puede pedir el enlace de recuperacion
+    for destino, temporal in temporales:
+        correo.enviar(
+            destino,
+            "Su cuenta de Parque Demo",
+            f"Su contraseña temporal es: {temporal}\n\n"
+            f"Vale {settings.validez_clave_temporal_horas} horas y un solo uso: "
+            f"deberá reemplazarla al ingresar en {settings.url_publica}.",
+        )
     logs.log_evento(
         "sync.dms",
         estado="exito",

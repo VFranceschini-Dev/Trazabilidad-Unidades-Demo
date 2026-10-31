@@ -7,6 +7,8 @@ los del fixture `base` y alterarian a los usuarios compartidos de la suite.
 from __future__ import annotations
 
 import itertools
+import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -74,15 +76,42 @@ def _reemplazar(emp: EmpleadoDMS, **extra: Any) -> EmpleadoDMS:
     return EmpleadoDMS(**{**emp.__dict__, **extra})
 
 
-def test_crea_empleado_nuevo_sin_clave(sesion, fabrica_sesion, base) -> None:
+def test_crea_empleado_con_clave_temporal_por_correo(sesion, fabrica_sesion, base, client, monkeypatch) -> None:
+    enviados: list[tuple[str, str, str]] = []
+    monkeypatch.setattr("app.core.correo.enviar", lambda *m: enviados.append(m) or True)
     emp = _empleado(rol="RESP_POSVENTA", id_sucursal="SC02")
     resultado = sincronizar(sesion, DMSFalso([emp]), None)
     assert (resultado.creados, resultado.error) == (1, None)
     usuario = _usuario(fabrica_sesion, emp.legajo)
     assert usuario.rol is Rol.RESP_POSVENTA
     assert usuario.id_sucursal == "SC02"
-    assert usuario.hash_clave == ""
     assert usuario.debe_cambiar_clave is True
+    faltan = usuario.clave_temporal_hasta - datetime.now(timezone.utc)
+    assert timedelta(hours=47) < faltan <= timedelta(hours=48)
+
+    [(destino, _, cuerpo)] = enviados
+    assert destino == emp.correo
+    temporal = re.search(r"temporal es: (\S+)", cuerpo).group(1)
+    r = client.post("/api/v1/auth/ingresar", json={"correo": emp.correo, "clave": temporal})
+    assert r.status_code == 200
+    assert r.json()["debe_cambiar_clave"] is True
+
+
+def test_empleado_inactivo_no_recibe_clave(sesion, base, monkeypatch) -> None:
+    enviados: list[tuple[str, str, str]] = []
+    monkeypatch.setattr("app.core.correo.enviar", lambda *m: enviados.append(m) or True)
+    sincronizar(sesion, DMSFalso([_empleado(activo=False)]), None)
+    assert enviados == []
+
+
+def test_correo_caido_no_rompe_la_sincronizacion(sesion, fabrica_sesion, base, monkeypatch) -> None:
+    def falla(*_: Any, **__: Any) -> None:
+        raise OSError("sin servidor")
+
+    monkeypatch.setattr("smtplib.SMTP", falla)
+    emp = _empleado()
+    assert sincronizar(sesion, DMSFalso([emp]), None).error is None
+    assert _usuario(fabrica_sesion, emp.legajo) is not None
 
 
 def test_rol_desconocido_se_crea_como_asesor(sesion, fabrica_sesion, base) -> None:

@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core import auditoria
+from app.core import auditoria, correo
 from app.core.db import get_session
 from app.core.seguridad import obtener_usuario
 from app.identidad import service
-from app.identidad.esquemas import CambiarClaveIn, IngresarIn, IngresarOut, RecuperarIn, UsuarioOut, YoOut
+from app.identidad.esquemas import CambiarClaveIn, IngresarIn, IngresarOut, RecuperarIn, RestablecerIn, UsuarioOut, YoOut
 from app.tablas_generales.models import Sucursal
 
 router = APIRouter(tags=["identidad"])
@@ -50,10 +50,20 @@ def cambiar_clave(
 
 
 @router.post("/auth/recuperar")
-def recuperar(datos: RecuperarIn, request: Request, sesion: Session = Depends(get_session)) -> dict[str, str]:
-    """Respuesta identica exista o no el correo: no revela cuentas registradas."""
-    service.recuperar(sesion, datos.correo, auditoria.ip_desde_request(request))
-    return {"estado": "si el correo existe se emitió una contraseña temporal válida 48 h"}
+def recuperar(
+    datos: RecuperarIn, request: Request, tareas: BackgroundTasks, sesion: Session = Depends(get_session)
+) -> dict[str, str]:
+    """Respuesta identica exista o no el correo: el envio va en segundo plano para que tampoco la demora lo revele."""
+    mensaje = service.recuperar(sesion, datos.correo, auditoria.ip_desde_request(request))
+    if mensaje is not None:
+        tareas.add_task(correo.enviar, *mensaje)
+    return {"estado": "si el correo existe se envió un enlace válido por 30 minutos"}
+
+
+@router.post("/auth/restablecer")
+def restablecer(datos: RestablecerIn, request: Request, sesion: Session = Depends(get_session)) -> dict[str, str]:
+    service.restablecer(sesion, datos.token, datos.clave_nueva, auditoria.ip_desde_request(request))
+    return {"estado": "clave actualizada"}
 
 
 @router.get("/yo", response_model=YoOut)
