@@ -124,7 +124,11 @@ def transicionar(
     from app.unidades.models import EventoUnidad  # import local: evita ciclo de modulos
 
     unidad_fila = sesion.execute(
-        select(unidad.__class__).where(unidad.__class__.id == unidad.id).with_for_update()
+        select(unidad.__class__)
+        .where(unidad.__class__.id == unidad.id)
+        .with_for_update()
+        # Sin esto, quien espero el bloqueo sigue viendo lo que leyo antes de la otra transaccion
+        .execution_options(populate_existing=True)
     ).scalar_one()
 
     es_alta = evento is TipoEvento.ALTA

@@ -208,7 +208,7 @@ def test_adaptador_http_traduce_errores_a_error_dms(monkeypatch) -> None:
 def test_respaldo_csv_del_repositorio_coincide_con_el_dms_simulado() -> None:
     adaptador = DMSDesdeCSV(RESPALDO)
     empleados = {e.legajo: e for e in adaptador.traer_empleados()}
-    assert len(empleados) == 7
+    assert len(empleados) == 9
     assert empleados["1002"].rol == "RESP_MKT_VENTAS"
     assert empleados["1007"].activo is False
     assert adaptador.traer_unidades() == []

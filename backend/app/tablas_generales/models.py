@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, select
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.core.db import Base
@@ -29,10 +29,28 @@ class Cliente(Base):
     __tablename__ = "cliente"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    documento: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    # Opcional: el prospecto de un test drive solo deja nombre y telefono
+    documento: Mapped[Optional[str]] = mapped_column(String(20), unique=True, index=True, nullable=True)
     nombre: Mapped[str] = mapped_column(String(120))
     contacto: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora_utc)
+
+
+class Alerta(Base):
+    """Alertas (Tabla 29 del TFG). DEVOLUCION_CON_DANOS se suma a los tipos del diccionario
+    (docs/decisiones.md); la pantalla y los controles diarios llegan en la etapa 4."""
+
+    __tablename__ = "alerta"
+
+    id_alerta: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tipo_alerta: Mapped[str] = mapped_column(String(30))
+    id_unidad: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("unidad_demo.id"), nullable=True)
+    mensaje: Mapped[str] = mapped_column(String(200))
+    estado: Mapped[str] = mapped_column(String(10), default="ABIERTA", server_default="ABIERTA")
+    fecha_creacion: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora_utc)
+    id_usuario_cierre: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("usuario.id"), nullable=True)
+    fecha_cierre: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    accion_realizada: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class Parametro(Base):

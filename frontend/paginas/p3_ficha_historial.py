@@ -1,7 +1,7 @@
 """P3. Ficha e historial de la unidad (HU-07, HU-11). Réplica de P3_ficha_historial.png.
 
-En esta etapa: datos actuales, línea de tiempo y botones de asignación y service.
-El mapa y los botones de uso, préstamo y pase a venta se completan en etapas siguientes.
+Datos actuales, línea de tiempo y botones de asignación, service, uso y préstamo.
+El mapa y el pase a venta se completan en etapas siguientes.
 """
 
 from __future__ import annotations
@@ -20,6 +20,8 @@ from componentes.ui import (  # noqa: E402
     FAVICON_RUTA,
     P3,
     P4,
+    P5,
+    P7,
     chip_estado,
     inyectar_estilos,
     logo_lateral,
@@ -59,6 +61,9 @@ TITULOS_EVENTO = {
 }
 
 
+TIPOS_USO = {"TEST_DRIVE": "test drive", "GIRA": "gira", "GUARDIA": "guardia", "EVENTO": "evento"}
+
+
 def km(valor: Any) -> str:
     return f"{valor:,} km".replace(",", ".") if valor is not None else "—"
 
@@ -70,6 +75,14 @@ def fila(rotulo: str, valor_html: str) -> str:
 def detalle_evento(ev: dict[str, Any]) -> str:
     datos = ev.get("datos") or {}
     partes = [TITULOS_EVENTO.get(ev["tipo_evento"], ev["tipo_evento"])]
+    if datos.get("tipo_uso"):
+        partes.append(TIPOS_USO.get(datos["tipo_uso"], datos["tipo_uso"]))
+    if datos.get("nombre_cliente"):
+        partes.append(str(datos["nombre_cliente"]))
+    if datos.get("nro_orden_reparacion"):
+        partes.append(str(datos["nro_orden_reparacion"]))
+    if datos.get("con_danos"):
+        partes.append("con daños")
     if datos.get("id_sucursal"):
         partes.append(f"sucursal {datos['id_sucursal']}")
     if datos.get("motivo"):
@@ -144,6 +157,16 @@ try:
                 st.switch_page(P4)
             if "LIBERACION" in acciones and botones[1].button("Liberar", use_container_width=True):
                 post_y_recargar(f"/unidades/{id_unidad}/liberar", {}, "Unidad liberada.")
+        if rol == "ASESOR":
+            if "SALIDA" in acciones and botones[0].button("Registrar salida", type="primary", use_container_width=True):
+                st.switch_page(P7)
+            if "REGRESO" in acciones and botones[0].button("Registrar regreso", type="primary", use_container_width=True):
+                st.switch_page(P7)
+        if rol == "RESP_POSVENTA" and u["circuito"] == "POSVENTA":
+            if "PRESTAMO" in acciones and botones[0].button("Prestar", type="primary", use_container_width=True):
+                st.switch_page(P5)
+            if "DEVOLUCION" in acciones and botones[0].button("Registrar devolución", type="primary", use_container_width=True):
+                st.switch_page(P5)
         if rol in ROLES_SERVICE:
             if "INGRESO_SERVICE" in acciones and botones[1].button("Ingresar a service", use_container_width=True):
                 post_y_recargar(f"/unidades/{id_unidad}/service/ingreso", {}, "Unidad ingresada a service.")

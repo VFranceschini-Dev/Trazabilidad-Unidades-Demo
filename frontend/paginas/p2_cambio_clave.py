@@ -39,6 +39,7 @@ if guardar:
         if estado == 200:
             st.success("Contraseña actualizada.")
             st.session_state["usuario"]["debe_cambiar_clave"] = False
-            st.switch_page("paginas/p3_ficha_historial.py")
+            es_asesor = st.session_state["usuario"]["rol"] == "ASESOR"
+            st.switch_page("paginas/p7_registro_uso.py" if es_asesor else "paginas/p3_ficha_historial.py")
         else:
             st.error(detalle_error(cuerpo))

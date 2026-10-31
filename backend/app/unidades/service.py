@@ -76,6 +76,23 @@ def obtener_unidad(sesion: Session, id_unidad: int) -> UnidadDemo:
     return unidad
 
 
+def obtener_unidad_bloqueada(sesion: Session, id_unidad: int) -> UnidadDemo:
+    """Bloquea la fila hasta el fin de la transaccion y la devuelve con sus datos vigentes.
+
+    Las operaciones la usan antes de evaluar precondiciones: el km, el responsable y el
+    estado no pueden cambiar entre la validacion y la transicion del motor.
+    """
+    unidad = sesion.scalar(
+        select(UnidadDemo)
+        .where(UnidadDemo.id == id_unidad)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if unidad is None:
+        raise NoEncontrado("la unidad")
+    return unidad
+
+
 def alta_unidad(
     sesion: Session,
     *,
@@ -204,7 +221,7 @@ def asignar(
     ip: Optional[str] = None,
 ) -> tuple[UnidadDemo, EventoUnidad]:
     """HU-03: asignacion desde DISPONIBLE o reasignacion desde ASIGNADA (cierra la anterior)."""
-    unidad = obtener_unidad(sesion, id_unidad)
+    unidad = obtener_unidad_bloqueada(sesion, id_unidad)
     instante = validar_carga_diferida(sesion, id_unidad, fecha_hora)
     evento_tipo = estados.TipoEvento.REASIGNACION if reasignacion else estados.TipoEvento.ASIGNACION
 
@@ -248,7 +265,7 @@ def liberar(
     ip: Optional[str] = None,
 ) -> tuple[UnidadDemo, EventoUnidad]:
     """HU-03.5: cierra la asignacion vigente y la unidad vuelve a DISPONIBLE."""
-    unidad = obtener_unidad(sesion, id_unidad)
+    unidad = obtener_unidad_bloqueada(sesion, id_unidad)
     instante = validar_carga_diferida(sesion, id_unidad, fecha_hora)
     evento = estados.transicionar(
         sesion, unidad, estados.TipoEvento.LIBERACION, usuario, origen,
@@ -271,7 +288,7 @@ def service_ingreso(
     ip: Optional[str] = None,
 ) -> tuple[UnidadDemo, EventoUnidad]:
     """HU-07.5: DISPONIBLE -> EN_SERVICE."""
-    unidad = obtener_unidad(sesion, id_unidad)
+    unidad = obtener_unidad_bloqueada(sesion, id_unidad)
     instante = validar_carga_diferida(sesion, id_unidad, fecha_hora)
     evento = estados.transicionar(
         sesion, unidad, estados.TipoEvento.INGRESO_SERVICE, usuario, origen,
@@ -297,7 +314,7 @@ def service_fin(
 
     El umbral de aviso (500 km) se guarda en los datos del evento para el tablero (etapa 4).
     """
-    unidad = obtener_unidad(sesion, id_unidad)
+    unidad = obtener_unidad_bloqueada(sesion, id_unidad)
     instante = validar_carga_diferida(sesion, id_unidad, fecha_hora)
     precondiciones: tuple[str, ...] = ()
     if km < unidad.km_actual:

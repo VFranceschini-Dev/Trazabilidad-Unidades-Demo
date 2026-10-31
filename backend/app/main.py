@@ -24,6 +24,8 @@ from app.core.db import SessionLocal
 from app.core.excepciones import ErrorDominio
 from app.rutas_auth import router as router_auth
 from app.rutas_catalogos import router as router_catalogos
+from app.rutas_comercial import router as router_comercial
+from app.rutas_posventa import router as router_posventa
 from app.rutas_sincronizacion import router as router_sync
 from app.rutas_unidades import router as router_unidades
 from app.sincronizacion.dms import DMSDesdeHTTP
@@ -70,7 +72,7 @@ def _router_salud() -> APIRouter:
                 sesion.execute(text("SELECT 1"))
         except Exception:
             estado_db = "caido"
-        return {"estado": "ok" if estado_db == "ok" else "degradado", "base": estado_db, "etapa": 1}
+        return {"estado": "ok" if estado_db == "ok" else "degradado", "base": estado_db, "etapa": 2}
 
     return r
 
@@ -79,12 +81,14 @@ v1 = APIRouter(prefix="/api/v1")
 v1.include_router(_router_salud())
 v1.include_router(router_auth)
 v1.include_router(router_catalogos)
+v1.include_router(router_comercial)
+v1.include_router(router_posventa)
 v1.include_router(router_unidades)
 v1.include_router(router_sync)
 
 app = FastAPI(
     title="Plataforma de Trazabilidad de Unidades Demo",
-    description="Prototipo TFG — núcleo de trazabilidad (etapa 1). Datos ficticios (Ley 25.326).",
+    description="Prototipo TFG — operación diaria (etapa 2). Datos ficticios (Ley 25.326).",
     version="1.0.0",
     docs_url="/api/v1/docs",
     redoc_url=None,

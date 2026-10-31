@@ -82,3 +82,27 @@ div[data-testid="stAlert"] { border-left-width: 5px; border-radius: 8px; }
 
 /* Los botones deshabilitados no deben parecer activos */
 .stButton > button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* P7: tarjeta de la unidad y cabecera para celular */
+.cabecera-movil { color: #5B6B85; font-size: .85rem; text-align: right; margin-bottom: .3rem; }
+.tarjeta-unidad { display: flex; align-items: center; justify-content: space-between; gap: .8rem; }
+.tarjeta-unidad .valor { font-size: 1.15rem; font-weight: 700; }
+.etiqueta-unidad { color: #5B6B85; font-size: .85rem; }
+
+/* Tipo de uso como botones segmentados */
+div[role="radiogroup"] { gap: .35rem; flex-wrap: wrap; }
+div[role="radiogroup"] > label {
+    border: 1px solid #C6CCD6; border-radius: 8px; padding: .45rem .8rem; margin: 0; background: #fff;
+}
+div[role="radiogroup"] > label:has(input:checked) { background: #1F3864; border-color: #1F3864; }
+div[role="radiogroup"] > label:has(input:checked) p { color: #fff; }
+div[role="radiogroup"] > label > div:first-child { display: none; }
+
+/* Celular: campos y botones comodos para el pulgar */
+@media (max-width: 640px) {
+    .block-container { padding: 1rem 1rem 3rem; }
+    input, textarea, div[data-baseweb="select"] > div { font-size: 16px !important; min-height: 44px; }
+    .stButton > button { min-height: 48px; font-size: 1rem; }
+    .fila-dato .rotulo { width: 46%; }
+    .tabla-simple { font-size: .82rem; }
+}

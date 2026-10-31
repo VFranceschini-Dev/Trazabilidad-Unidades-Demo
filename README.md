@@ -31,7 +31,9 @@ Ninguna de estas cuentas exige cambiar la contraseña al primer ingreso (ver `do
 | --- | --- | --- |
 | Administrador del sistema | admin@demo.local | `DemoAdmin2026!` |
 | Responsable de Marketing y Ventas | mkt@demo.local | `DemoMkt2026!` |
-| Asesor comercial | asesor@demo.local | `DemoAsesor2026!` |
+| Asesor comercial (Formosa) | asesor@demo.local | `DemoAsesor2026!` |
+| Asesor comercial (Casa Central) | asesor.central@demo.local | `DemoCentral2026!` |
+| Asesor comercial (Sáenz Peña) | asesor.saenz@demo.local | `DemoSaenz2026!` |
 | Responsable de Posventa | posventa@demo.local | `DemoPosventa2026!` |
 | Técnico de Taller | taller@demo.local | `DemoTaller2026!` |
 | Responsable de División Usados | usados@demo.local | `DemoUsados2026!` |
@@ -52,7 +54,8 @@ sobre esa tabla; el rol dueño (`demo_migraciones`) ejecuta las migraciones.
 
 - **Etapa 0 — andamiaje y contenedores:** ✅ estructura, Compose con healthchecks, Nginx + certificado, Alembic inicial, esqueleto web.
 - **Etapa 1 — núcleo de trazabilidad:** ✅ identidad, motor de estados, sincronización DMS, pantallas P1, P2, P3, P4 y P8.
-- Etapas 2 a 5: infracciones/OCR, ubicación/GPS, préstamos y tablero, empaquetado final.
+- **Etapa 2 — operación diaria:** ✅ usos comerciales, préstamos por garantía, pantallas P5 y P7.
+- Etapas 3 a 5: infracciones/OCR, ubicación/GPS y tablero, empaquetado final.
 
 ## Desarrollo
 

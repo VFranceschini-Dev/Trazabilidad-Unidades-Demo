@@ -131,3 +131,61 @@ hay que revisar si se actualiza la version.
 
 La etiqueta `1.53.4` del prompt de versiones no existe en Docker Hub y hacia fallar la
 instalacion limpia. Se usa `1.53.2`, la ultima publicada de esa version menor.
+
+## Etapa 2 — operación diaria
+
+### Alerta `DEVOLUCION_CON_DANOS`
+
+HU-06 pide una alerta por devolucion con danos, pero la Tabla 29 del TFG no tiene ese tipo.
+Se agrega al diccionario. La alerta se guarda en `alerta` con referencia a la unidad; su
+pantalla (P9) llega en la etapa 4. Los danos no tienen columna propia en `prestamo`: quedan
+en `estado_devolucion`, en la alerta y en los datos del evento.
+
+### Prospecto del test drive: nombre y telefono
+
+La Tabla 26 vincula el test drive a un cliente y P7 muestra un solo dato de contacto. La
+migracion `0004` vuelve opcional `cliente.documento` y P7 pide nombre y telefono, en dos
+campos para validar cada uno. Cada test drive crea un cliente: sin documento no hay con que
+reconocer a un prospecto que vuelve. En el prestamo, en cambio, el cliente se identifica
+por documento y se reutiliza.
+
+### Control previo
+
+Los cuatro items de P5 se guardan en `prestamo.control_previo` (JSONB, como pide el prompt) y
+las observaciones en `estado_entrega`, el campo de la Tabla 27.
+
+### Service vencido segun el km mayor
+
+HU-05.2 bloquea por kilometraje. Se compara el proximo service con el mayor entre el km actual
+y el declarado en la entrega. Una unidad sin proximo service cargado no se considera vencida.
+
+### Bloqueo de la unidad antes de validar
+
+`transicionar` usaba el estado leido antes de esperar el `FOR UPDATE`: con dos pedidos
+simultaneos, el segundo podia aplicar una transicion invalida. Ahora refresca la fila, y las
+operaciones toman el bloqueo con `obtener_unidad_bloqueada` antes de evaluar precondiciones.
+Corrige tambien las operaciones de la etapa 1.
+
+### Asesores por sucursal
+
+Se suman dos asesores ficticios (Casa Central y Saenz Pena) al DMS simulado, la semilla y el
+CSV, para que la historia de la semilla no quede toda en Formosa. La Division Usados sigue sin
+asesor y su unidad comercial (AI009JK) queda DISPONIBLE.
+
+### Semilla: historia solo en unidades sin movimientos
+
+La historia de 30 dias usa fechas pasadas y el motor rechaza eventos anteriores al ultimo de
+cada unidad, por lo que la semilla saltea las unidades con movimientos. Para verla completa
+hay que partir de una base nueva. La fecha prevista del prestamo demorado queda 2 dias antes
+de la ejecucion de la semilla.
+
+### Asesor: entra a P7
+
+El arreglo provisional de la etapa 1 (entrar a P3) se retira: P7 ya existe.
+
+### Revision con Qwen
+
+El codigo de esta etapa se reviso con `qwen3.8-flash`, enviando solo fragmentos de codigo y
+reglas de negocio, sin credenciales ni datos del TFG. Se aplicaron la correccion del bloqueo
+y la del service vencido. Se descartaron, entre otras, las validaciones de fecha diferida en
+la pantalla: `st.time_input` no admite limites y la API ya rechaza esas fechas con un mensaje.

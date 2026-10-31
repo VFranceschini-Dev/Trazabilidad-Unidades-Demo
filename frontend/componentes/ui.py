@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from html import escape
 from pathlib import Path
 from typing import Any
@@ -23,12 +23,16 @@ ZONA = ZoneInfo("America/Argentina/Buenos_Aires")
 
 P3 = "paginas/p3_ficha_historial.py"
 P4 = "paginas/p4_asignacion.py"
+P5 = "paginas/p5_prestamo_garantia.py"
+P7 = "paginas/p7_registro_uso.py"
 P8 = "paginas/p8_alta_unidad.py"
 
 # Opciones construidas y las entradas de /yo (menu_permitido) que las habilitan.
 # Las demás entradas de ese menú pertenecen a etapas siguientes y todavía no se muestran.
 MENU = (
     ("Unidades demo", P3, {"Unidades", "Mis unidades", "Service"}),
+    ("Uso comercial", P7, {"Test drive"}),
+    ("Préstamos Posventa", P5, {"Préstamos"}),
     ("Asignación", P4, {"Asignaciones"}),
     ("Alta de unidad", P8, {"Altas"}),
 )
@@ -167,6 +171,17 @@ def mostrar_dia(valor: str | None) -> str:
         return _a_local(valor).strftime("%d/%m/%Y")
     except ValueError:
         return valor
+
+
+def fecha_hora_diferida(clave: str) -> str | None:
+    """Carga diferida: None registra el momento actual; si no, el instante elegido en ISO 8601."""
+    if not st.checkbox("Registrar con otra fecha y hora", key=clave):
+        return None
+    ahora = datetime.now(ZONA)
+    col_dia, col_hora = st.columns(2)
+    dia: date = col_dia.date_input("Fecha", value=ahora.date(), max_value=ahora.date(), format="DD/MM/YYYY", key=f"{clave}_dia")
+    hora = col_hora.time_input("Hora", value=ahora.time().replace(second=0, microsecond=0), key=f"{clave}_hora")
+    return datetime.combine(dia, hora, ZONA).isoformat()
 
 
 def hoy() -> str:

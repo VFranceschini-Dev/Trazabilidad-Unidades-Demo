@@ -41,6 +41,8 @@ if enviado:
             st.session_state["usuario"] = cuerpo["usuario"]
             if cuerpo.get("debe_cambiar_clave"):
                 st.switch_page("paginas/p2_cambio_clave.py")
+            elif cuerpo["usuario"]["rol"] == "ASESOR":
+                st.switch_page("paginas/p7_registro_uso.py")
             else:
                 st.switch_page("paginas/p3_ficha_historial.py")
         elif estado == 423:

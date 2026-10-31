@@ -180,3 +180,47 @@ No figuran en el prompt; las necesitan P3, P4 y P8. Todas exigen token.
 | GET | `/unidades/{id}/asignaciones` | Asignaciones de la unidad, la más reciente primero |
 | GET | `/sucursales` | Sucursales activas |
 | GET | `/responsables` | Asesores, incluidos los inactivos (HU-03.3) |
+
+# Etapa 2 — operación diaria
+
+## Modelo de datos de esta etapa
+
+| Tabla | Puntos clave |
+| --- | --- |
+| `uso_comercial` | `tipo_uso` (TEST_DRIVE, GIRA, GUARDIA, EVENTO), salida/regreso con fecha y km, `CHECK km_regreso >= km_salida` |
+| `prestamo` | orden de reparación, cliente, entrega/devolución con fecha, km, combustible (0 a 8), control previo en JSONB, `fecha_devolucion_prevista`; una sola abierta por unidad |
+
+Índices: `uso_comercial (id_unidad, fecha_hora_salida)` y `prestamo (id_unidad, fecha_hora_entrega)`.
+
+Las alertas de devolución con daños (HU-06) se guardan en la tabla `alerta`; si todavía no existe, creala ahora con
+la estructura descrita en `docs/especificacion.md` o, si no está, con: tipo, referencia a unidad o acta, mensaje,
+estado (ABIERTA, CERRADA), usuario y fecha de cierre y acción realizada.
+
+## Transiciones de esta etapa
+
+| Estado origen | Evento | Estado destino | HU | Precondiciones |
+| --- | --- | --- | --- | --- |
+| ASIGNADA | SALIDA | EN_USO | HU-04 | el usuario es el responsable asignado |
+| EN_USO | REGRESO | ASIGNADA | HU-04 | km de regreso ≥ km de salida |
+| DISPONIBLE | PRESTAMO | EN_PRESTAMO | HU-05 | circuito POSVENTA; service no vencido; control previo completo o justificado |
+| EN_PRESTAMO | DEVOLUCION | DISPONIBLE | HU-06 | km de devolución ≥ km de entrega |
+
+Todas pasan por el motor de estados de `core`. El responsable vigente (HU-07) ya debe tener en cuenta usos y préstamos.
+
+## API de esta etapa
+
+Prefijo `/api/v1`, documentación en `/api/v1/docs`. Toda ruta exige token y rol salvo `salud` y `auth/ingresar`. Errores con un formato común `{codigo, mensaje, detalle}`.
+
+| Método | Ruta | HU | Roles |
+| --- | --- | --- | --- |
+| POST | `/usos/salida` · `/usos/{id}/regreso` | HU-04 | Asesor comercial |
+| POST | `/prestamos` · `/prestamos/{id}/devolucion` · GET `/prestamos?activos=true` | HU-05, HU-06 | Resp. Posventa |
+| GET | `/salud` | — | público |
+
+Todas las operaciones que registran un movimiento aceptan `fecha_hora` opcional para la carga diferida: si se envía, el evento se guarda con ese instante y `carga_diferida = true`; nunca puede ser futura ni anterior al último evento de la unidad.
+
+## Rutas agregadas en la etapa 2
+
+| Método | Ruta | Uso |
+| --- | --- | --- |
+| GET | `/usos/mis-unidades` | Unidades a cargo del asesor, con la salida abierta si la hay (P7) |

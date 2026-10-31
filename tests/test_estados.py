@@ -279,3 +279,18 @@ def test_carga_diferida_valida_marca_el_evento(sesion: Session, base) -> None:
 def test_origen_solo_valores_del_tfg() -> None:
     """El diccionario de datos del TFG define exactamente WEB, N8N, TRACCAR y DMS."""
     assert {o.value for o in estados.Origen} == {"WEB", "N8N", "TRACCAR", "DMS"}
+
+
+def test_motor_usa_el_estado_vigente_y_no_el_leido_antes_del_bloqueo(fabrica_sesion, base) -> None:
+    """Dos pedidos simultaneos: el segundo leyo la unidad antes de que el primero confirmara."""
+    with fabrica_sesion() as primero, fabrica_sesion() as segundo:
+        unidad = alta_unidad(primero, base)
+        primero.commit()
+        leida_antes = segundo.get(UnidadDemo, unidad.id)
+        assert leida_antes.estado_actual == E.DISPONIBLE.value
+
+        transicionar(primero, unidad, T.INGRESO_SERVICE, base.mkt)
+        primero.commit()
+
+        with pytest.raises(TransicionInvalida):
+            transicionar(segundo, leida_antes, T.ASIGNACION, base.mkt, {"id_responsable": base.asesor.id})
