@@ -186,6 +186,14 @@ def sembrar_historia(sesion, ahora: datetime) -> None:
                 )
 
 
+def sembrar_casos_de_alerta(sesion, ahora: datetime) -> None:
+    """Rotacion vencida y service proximo; el prestamo demorado y la multa ya estan sembrados."""
+    vencida = sesion.scalar(select(UnidadDemo).where(UnidadDemo.patente == "AB002CD"))
+    vencida.fecha_limite_rotacion = ahora - timedelta(days=2)
+    proxima = sesion.scalar(select(UnidadDemo).where(UnidadDemo.patente == "AN014OP"))
+    proxima.km_proximo_service = proxima.km_actual + 300
+
+
 def sembrar_acta_imputada(sesion, ahora: datetime) -> None:
     """Acta imputada con vencimiento en menos de 5 dias, para la alerta MULTA_POR_VENCER (etapa 4)."""
     if sesion.scalar(select(Infraccion.id_infraccion).where(Infraccion.nro_acta == ACTA_IMPUTADA)) is not None:
@@ -303,6 +311,7 @@ def sembrar() -> None:
         sesion.flush()
         sembrar_historia(sesion, ahora)
         sembrar_acta_imputada(sesion, ahora)
+        sembrar_casos_de_alerta(sesion, ahora)
         sesion.commit()
         print("== semilla aplicada ==")
     finally:

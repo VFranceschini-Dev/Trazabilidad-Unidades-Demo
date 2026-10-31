@@ -21,22 +21,28 @@ FAVICON_RUTA = str(RECURSOS / "favicon-donnet.png")
 
 ZONA = ZoneInfo("America/Argentina/Buenos_Aires")
 
+P2 = "paginas/p2_tablero.py"
 P3 = "paginas/p3_ficha_historial.py"
 P4 = "paginas/p4_asignacion.py"
 P5 = "paginas/p5_prestamo_garantia.py"
 P6 = "paginas/p6_infracciones.py"
 P7 = "paginas/p7_registro_uso.py"
 P8 = "paginas/p8_alta_unidad.py"
+P9 = "paginas/p9_alertas.py"
+P10 = "paginas/p10_pase_venta.py"
 
 # Opciones construidas y las entradas de /yo (menu_permitido) que las habilitan.
 # Las demás entradas de ese menú pertenecen a etapas siguientes y todavía no se muestran.
 MENU = (
+    ("Tablero", P2, {"Tablero", "Inicio"}),
     ("Unidades demo", P3, {"Unidades", "Mis unidades", "Service"}),
     ("Uso comercial", P7, {"Test drive"}),
     ("Préstamos Posventa", P5, {"Préstamos"}),
     ("Infracciones", P6, {"Infracciones"}),
     ("Asignación", P4, {"Asignaciones"}),
     ("Alta de unidad", P8, {"Altas"}),
+    ("Pase a venta y baja", P10, {"Asignaciones"}),
+    ("Alertas", P9, {"Alertas"}),
 )
 
 ROLES = {
@@ -46,6 +52,25 @@ ROLES = {
     "RESP_POSVENTA": "Resp. Posventa",
     "ADMINISTRACION": "Administración",
     "GERENCIA": "Gerencia",
+}
+
+NOMBRE_ALERTA = {
+    "ROTACION_VENCIDA": "Rotación vencida",
+    "PRESTAMO_DEMORADO": "Préstamo demorado",
+    "SERVICE_PROXIMO": "Service próximo",
+    "MULTA_POR_VENCER": "Multa por vencer",
+    "ACTA_A_VALIDAR": "Acta a validar",
+    "DEVOLUCION_CON_DANOS": "Devolución con daños",
+    "SIN_RESPONSABLE": "Sin responsable",
+}
+COLOR_ALERTA = {
+    "ROTACION_VENCIDA": "error",
+    "PRESTAMO_DEMORADO": "error",
+    "DEVOLUCION_CON_DANOS": "error",
+    "SIN_RESPONSABLE": "error",
+    "SERVICE_PROXIMO": "aviso",
+    "MULTA_POR_VENCER": "aviso",
+    "ACTA_A_VALIDAR": "info",
 }
 
 CHIPS = {

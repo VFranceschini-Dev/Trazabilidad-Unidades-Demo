@@ -6,9 +6,10 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.tablas_generales.models import Alerta
+from app.tablas_generales.models import Alerta, valor_parametro
 
 
 def _abierta(sesion: Session, tipo: str, id_unidad: Optional[int], id_infraccion: Optional[int]) -> Optional[Alerta]:
@@ -29,11 +30,26 @@ def generar(
     alerta = _abierta(sesion, tipo, id_unidad, id_infraccion)
     if alerta is None:
         alerta = Alerta(tipo_alerta=tipo, id_unidad=id_unidad, id_infraccion=id_infraccion, mensaje=mensaje[:200])
-        sesion.add(alerta)
+        try:
+            with sesion.begin_nested():
+                sesion.add(alerta)
+                sesion.flush()
+        except IntegrityError:  # otro proceso la creo al mismo tiempo: la unica abierta es esa
+            return _abierta(sesion, tipo, id_unidad, id_infraccion)
     else:
         alerta.mensaje = mensaje[:200]
     sesion.flush()
     return alerta
+
+
+def verificar_service_proximo(sesion: Session, unidad: Any) -> None:
+    """HU-13.3: se llama cada vez que cambia el kilometraje."""
+    if unidad.km_proximo_service is None:
+        return
+    restantes = unidad.km_proximo_service - unidad.km_actual
+    if restantes < int(valor_parametro(sesion, "aviso_service_km", "500")):
+        detalle = f"está a {restantes} km del service" if restantes >= 0 else f"tiene el service vencido hace {-restantes} km"
+        generar(sesion, "SERVICE_PROXIMO", f"{unidad.patente} {detalle}.", id_unidad=unidad.id)
 
 
 def cerrar(

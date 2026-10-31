@@ -105,10 +105,11 @@ def listar(
     estado: Optional[list[str]] = Query(default=None, description="Uno o varios estados"),
     circuito: Optional[Circuito] = None,
     q: Optional[str] = Query(default=None, description="Patente o VIN (parcial)"),
+    id_sucursal: Optional[str] = None,
     usuario: Any = Depends(obtener_usuario),
     sesion: Session = Depends(get_session),
 ) -> list[UnidadOut]:
-    unidades = service.listar_unidades(sesion, estados_unidad=estado, circuito=circuito, texto=q)
+    unidades = service.listar_unidades(sesion, estados_unidad=estado, circuito=circuito, texto=q, id_sucursal=id_sucursal)
     return [_out(sesion, u) for u in service.filtrar_por_perfil(sesion, usuario, unidades)]
 
 

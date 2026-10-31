@@ -132,11 +132,11 @@ def salir(sesion: Session, usuario: Usuario, ip: Optional[str]) -> None:
 
 
 MENU_POR_ROL: dict[Rol, list[str]] = {
-    Rol.ADMIN: ["Inicio", "Unidades", "Sincronización DMS", "Auditoría", "Parámetros"],
-    Rol.RESP_MKT_VENTAS: ["Inicio", "Unidades", "Asignaciones", "Altas"],
+    Rol.ADMIN: ["Inicio", "Unidades", "Alertas", "Sincronización DMS", "Auditoría", "Parámetros"],
+    Rol.RESP_MKT_VENTAS: ["Inicio", "Unidades", "Asignaciones", "Altas", "Alertas"],
     Rol.ASESOR: ["Mis unidades", "Test drive"],
-    Rol.RESP_POSVENTA: ["Inicio", "Unidades", "Altas", "Préstamos", "Service"],
-    Rol.ADMINISTRACION: ["Inicio", "Unidades", "Infracciones"],
+    Rol.RESP_POSVENTA: ["Inicio", "Unidades", "Altas", "Préstamos", "Service", "Alertas"],
+    Rol.ADMINISTRACION: ["Inicio", "Unidades", "Infracciones", "Alertas"],
     Rol.GERENCIA: ["Tablero", "Unidades", "Alertas"],
     Rol.TECNICO: [],
 }

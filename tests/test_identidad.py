@@ -294,9 +294,9 @@ def test_usuario_dado_de_baja_pierde_acceso_con_token_vigente(client, sesion, ha
 @pytest.mark.parametrize(
     "rol,menu_esperado",
     [
-        (Rol.RESP_MKT_VENTAS, ["Inicio", "Unidades", "Asignaciones", "Altas"]),
+        (Rol.RESP_MKT_VENTAS, ["Inicio", "Unidades", "Asignaciones", "Altas", "Alertas"]),
         (Rol.ASESOR, ["Mis unidades", "Test drive"]),
-        (Rol.RESP_POSVENTA, ["Inicio", "Unidades", "Altas", "Préstamos", "Service"]),
+        (Rol.RESP_POSVENTA, ["Inicio", "Unidades", "Altas", "Préstamos", "Service", "Alertas"]),
     ],
 )
 def test_menu_permitido_segun_rol(client, sesion, hash_pruebas, rol, menu_esperado) -> None:

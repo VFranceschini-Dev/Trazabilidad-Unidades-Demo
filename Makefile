@@ -9,6 +9,7 @@ demo: nginx-cert
 	$(COMPOSE) up -d --build
 	$(MAKE) migrar
 	$(MAKE) seed
+	$(MAKE) gps
 	$(MAKE) actas
 	@echo "== demo lista: https://localhost · https://localhost/api/v1/docs · http://localhost:5678 (n8n) =="
 
@@ -40,9 +41,7 @@ actas:
 	else echo "== actas: se agrega en la etapa de infracciones =="; fi
 
 gps:
-	@if [ -f scripts/simular_gps.py ]; then \
-	  $(COMPOSE) exec -T api python /srv/scripts/simular_gps.py; \
-	else echo "== gps: se agrega en la etapa de ubicacion =="; fi
+	$(COMPOSE) exec -T api python /srv/scripts/simular_gps.py
 
 ## test: suite completa dentro de Docker (perfil test) contra Postgres efimero del servicio db
 test:

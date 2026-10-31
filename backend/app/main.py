@@ -2,17 +2,16 @@
 
 Prefijo /api/v1 para todas las rutas; documentacion en /api/v1/docs. Errores con el
 formato comun {codigo, mensaje, detalle}. CORS cerrado a los origenes de la demo.
-La sincronizacion DMS programada corre en un task interno (HU-15 criterio 1 y 3).
+Las tareas programadas corren con APScheduler (HU-13 y HU-15).
 """
 
 from __future__ import annotations
 
-import asyncio
-import contextlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,6 +24,7 @@ from app.core.excepciones import ErrorDominio
 from app.rutas_auth import router as router_auth
 from app.rutas_catalogos import router as router_catalogos
 from app.rutas_comercial import router as router_comercial
+from app.rutas_gestion import router as router_gestion
 from app.rutas_infracciones import router as router_infracciones
 from app.rutas_posventa import router as router_posventa
 from app.rutas_sincronizacion import router as router_sync
@@ -32,31 +32,49 @@ from app.rutas_unidades import router as router_unidades
 from app.sincronizacion.dms import DMSDesdeHTTP
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    logs.configurar()
-    tarea = asyncio.create_task(_planificador_dms()) if settings.sync_dms_cada_minutos > 0 else None
-    yield
-    if tarea is not None:
-        tarea.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await tarea
-
-
-async def _planificador_dms() -> None:
+def _sincronizar_dms() -> None:
     """Sincronizacion programada: ante error se registra y se reintenta en el siguiente ciclo."""
     from app.sincronizacion.service import sincronizar
 
-    while True:
-        await asyncio.sleep(max(settings.sync_dms_cada_minutos, 1) * 60)
-        sesion = SessionLocal()
-        try:
-            sincronizar(sesion, DMSDesdeHTTP(), usuario=None)
-        except Exception as exc:  # nunca rompe la aplicacion
-            logs.log_evento("sync.dms.planificador", estado="error", tipo=type(exc).__name__)
-            sesion.rollback()
-        finally:
-            sesion.close()
+    sesion = SessionLocal()
+    try:
+        sincronizar(sesion, DMSDesdeHTTP(), usuario=None)
+    except Exception as exc:  # nunca rompe la aplicacion
+        logs.log_evento("sync.dms.planificador", estado="error", tipo=type(exc).__name__)
+        sesion.rollback()
+    finally:
+        sesion.close()
+
+
+def _control_diario() -> None:
+    """HU-13: control diario de alertas."""
+    from app.core.control_alertas import ejecutar_control
+
+    sesion = SessionLocal()
+    try:
+        abiertas = ejecutar_control(sesion)
+        sesion.commit()
+        logs.log_evento("alertas.control", estado="exito", abiertas=abiertas)
+    except Exception as exc:
+        logs.log_evento("alertas.control", estado="error", tipo=type(exc).__name__)
+        sesion.rollback()
+    finally:
+        sesion.close()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    logs.configurar()
+    planificador: BackgroundScheduler | None = None
+    if settings.planificador_activo:
+        planificador = BackgroundScheduler(timezone=settings.timezone_display)
+        planificador.add_job(_control_diario, "cron", hour=settings.hora_control_alertas, minute=0)
+        if settings.sync_dms_cada_minutos > 0:
+            planificador.add_job(_sincronizar_dms, "interval", minutes=settings.sync_dms_cada_minutos)
+        planificador.start()
+    yield
+    if planificador is not None:
+        planificador.shutdown(wait=False)
 
 
 def _router_salud() -> APIRouter:
@@ -73,7 +91,7 @@ def _router_salud() -> APIRouter:
                 sesion.execute(text("SELECT 1"))
         except Exception:
             estado_db = "caido"
-        return {"estado": "ok" if estado_db == "ok" else "degradado", "base": estado_db, "etapa": 3}
+        return {"estado": "ok" if estado_db == "ok" else "degradado", "base": estado_db, "etapa": 4}
 
     return r
 
@@ -85,12 +103,13 @@ v1.include_router(router_catalogos)
 v1.include_router(router_comercial)
 v1.include_router(router_posventa)
 v1.include_router(router_infracciones)
+v1.include_router(router_gestion)
 v1.include_router(router_unidades)
 v1.include_router(router_sync)
 
 app = FastAPI(
     title="Plataforma de Trazabilidad de Unidades Demo",
-    description="Prototipo TFG — circuito de infracciones (etapa 3). Datos ficticios (Ley 25.326).",
+    description="Prototipo TFG — ubicación, tablero y alertas (etapa 4). Datos ficticios (Ley 25.326).",
     version="1.0.0",
     docs_url="/api/v1/docs",
     redoc_url=None,

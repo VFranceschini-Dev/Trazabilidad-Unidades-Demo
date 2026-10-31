@@ -13,6 +13,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core import estados
+from app.core.alertas import verificar_service_proximo
 from app.core.auditoria import registrar as auditar
 from app.core.excepciones import ErrorDominio, NoEncontrado, TransicionInvalida
 from app.core.historial import Responsable, responsable_vigente
@@ -366,6 +367,7 @@ def service_fin(
     else:
         intervalo = int(valor_parametro(sesion, "service_intervalo_km", "10000"))
         unidad.km_proximo_service = km + intervalo
+    verificar_service_proximo(sesion, unidad)
     auditar(sesion, id_usuario=getattr(usuario, "id", None), accion="SERVICE_FIN", recurso=f"unidad:{unidad.id}", ip=ip, resultado="EXITO")
     return unidad, evento
 
@@ -376,9 +378,12 @@ def listar_unidades(
     estados_unidad: Optional[list[str]] = None,
     circuito: Optional[Circuito] = None,
     texto: Optional[str] = None,
+    id_sucursal: Optional[str] = None,
 ) -> list[UnidadDemo]:
     """Unidades por patente; `texto` busca por patente o VIN, sin distinguir mayusculas."""
     consulta = select(UnidadDemo).order_by(UnidadDemo.patente)
+    if id_sucursal:
+        consulta = consulta.where(UnidadDemo.id_sucursal == id_sucursal)
     if estados_unidad:
         consulta = consulta.where(UnidadDemo.estado_actual.in_(estados_unidad))
     if circuito is not None:

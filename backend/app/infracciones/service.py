@@ -20,7 +20,7 @@ from app.core.historial import responsable_vigente
 from app.identidad.models import Rol, Usuario
 from app.infracciones.esquemas import LecturaIn, ValidarIn
 from app.infracciones.models import EstadoActa, Infraccion
-from app.integraciones.traccar import SIN_POSICION, posicion_cercana
+from app.integraciones.traccar import describir_para_acta, posicion_cercana
 from app.tablas_generales.models import valor_parametro
 from app.unidades.models import Circuito, EventoUnidad, UnidadDemo
 from app.unidades.service import obtener_unidad_bloqueada
@@ -209,7 +209,7 @@ def sugerir(sesion: Session, id_infraccion: int) -> Sugerencia:
     unidad = sesion.get(UnidadDemo, acta.id_unidad)
     vigente = responsable_vigente(sesion, unidad.id, acta.fecha_hora_infraccion)
     posicion = posicion_cercana(unidad.id_dispositivo_traccar, acta.fecha_hora_infraccion)
-    texto_posicion = str(posicion["descripcion"]) if posicion else SIN_POSICION
+    texto_posicion = describir_para_acta(posicion, acta.jurisdiccion)
     if vigente is None:
         usuario = _responsable_del_circuito(sesion, unidad)
         return Sugerencia("USUARIO", usuario.id, usuario.nombre, True, None, None, None, texto_posicion)

@@ -139,6 +139,7 @@ def registrar_entrega(
     )
     sesion.add(prestamo)
     unidad.km_actual = km_entrega
+    alertas.verificar_service_proximo(sesion, unidad)
     sesion.flush()
     auditar(sesion, id_usuario=usuario.id, accion="PRESTAMO_ENTREGA", recurso=f"unidad:{unidad.id}", ip=ip, resultado="EXITO")
     return unidad, prestamo
@@ -184,6 +185,7 @@ def registrar_devolucion(
     prestamo.estado_devolucion = estado_devolucion
     prestamo.id_usuario_recepcion = usuario.id
     unidad.km_actual = km_devolucion
+    alertas.verificar_service_proximo(sesion, unidad)
     if con_danos:
         alertas.generar(
             sesion,

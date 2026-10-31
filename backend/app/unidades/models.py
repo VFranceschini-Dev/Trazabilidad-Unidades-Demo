@@ -13,6 +13,7 @@ from sqlalchemy import (
     CHAR,
     DateTime,
     Enum as SAEnum,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -67,6 +68,17 @@ class EventoUnidad(Base):
     origen: Mapped[str] = mapped_column(String(10))            # API | N8N | TRACCAR | DMS
     carga_diferida: Mapped[bool] = mapped_column(Boolean, default=False)
     datos: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class PosicionCache(Base):
+    """Ultima posicion conocida, para responder cuando Traccar no esta disponible (HU-11.3)."""
+
+    __tablename__ = "posicion_cache"
+
+    id_unidad: Mapped[int] = mapped_column(Integer, ForeignKey("unidad_demo.id"), primary_key=True)
+    latitud: Mapped[float] = mapped_column(Float)
+    longitud: Mapped[float] = mapped_column(Float)
+    fecha_hora: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class Asignacion(Base):

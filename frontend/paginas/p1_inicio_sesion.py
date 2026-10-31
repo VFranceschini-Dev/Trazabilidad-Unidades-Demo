@@ -17,7 +17,7 @@ inyectar_estilos()
 logo_ingreso()
 
 if st.session_state.get("token"):
-    st.switch_page("paginas/p3_ficha_historial.py")
+    st.switch_page("paginas/p2_tablero.py")
 
 st.markdown('<div class="titulo-pagina">Parque Demo</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitulo">Plataforma de gestión y trazabilidad de unidades demo</div>', unsafe_allow_html=True)
@@ -44,7 +44,7 @@ if enviado:
             elif cuerpo["usuario"]["rol"] == "ASESOR":
                 st.switch_page("paginas/p7_registro_uso.py")
             else:
-                st.switch_page("paginas/p3_ficha_historial.py")
+                st.switch_page("paginas/p2_tablero.py")
         elif estado == 423:
             st.error(detalle_error(cuerpo))
         elif estado == 401:

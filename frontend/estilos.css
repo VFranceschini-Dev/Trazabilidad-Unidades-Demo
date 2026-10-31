@@ -111,3 +111,9 @@ div[role="radiogroup"] > label > div:first-child { display: none; }
 .rotulo-campo { color: #4A5568; font-size: .88rem; margin-bottom: .15rem; }
 .conf-ok { color: #1E7B34; font-weight: 600; margin-left: .4rem; }
 .conf-baja { color: #B7791F; font-weight: 700; margin-left: .4rem; }
+
+/* P2 y P9: indicadores y chips de alerta */
+.indicador .numero { font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
+.chip-alerta-error { background: #FBE4E4; color: #B42318; }
+.chip-alerta-aviso { background: #FDF3DC; color: #8a6d1b; }
+.chip-alerta-info  { background: #E3ECF9; color: #1F3864; }

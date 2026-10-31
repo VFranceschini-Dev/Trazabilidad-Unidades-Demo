@@ -232,13 +232,58 @@ La referencia tiene un boton "Corregir datos". Aca los campos ya se editan mient
 pendiente, y al validarla quedan fijos. La validacion y la imputacion son dos pasos separados, como
 en HU-09 y HU-10. El aviso de baja confianza marca el rotulo, sin el borde de color de la referencia.
 
-### Posicion de Traccar
-
-La sugerencia informa "sin posición" hasta la etapa 4 (`integraciones/traccar.py`), asi que
-HU-10.2 todavia no esta cumplida.
-
 ### Revision con Qwen
 
 Se reviso la imputacion y la ingesta con `qwen3.8-flash`. Se aplico el manejo de dos ingestas
 simultaneas del mismo numero. La revision de las expresiones regulares fallo por error del servicio
 y quedo sin hacer; esas expresiones se cubren con pruebas.
+
+## Etapa 4 — ubicación, tablero y alertas
+
+### Alertas por area
+
+Las ve y las cierra el area que las resuelve: Marketing y Posventa, rotacion y service de su circuito;
+Posventa, prestamos y danos; Administracion, actas, multas y sin responsable. Gerencia y el
+Administrador del sistema ven todas sin cerrarlas, por la Tabla 30. Si el problema sigue, el control
+siguiente vuelve a generar la alerta cerrada. Una alerta no se cierra sola al resolverse el problema.
+
+### Multas pendientes
+
+El indicador cuenta las actas sin validar, validadas e imputadas sin pagar. Un acta sin unidad (ilegible
+o de otra patente) solo se cuenta sin filtros, y no para Resp. Posventa.
+
+### APScheduler
+
+Reemplaza a la tarea `asyncio` de la etapa 1, tambien para la sincronizacion con el DMS. El control corre
+a las 07:00 (`HORA_CONTROL_ALERTAS`). Con `PLANIFICADOR_ACTIVO=false` no corre nada, como en las pruebas.
+En una instalacion nueva no hay alertas de control hasta esa hora o hasta "Ejecutar control ahora".
+
+### Mapa con fondo de internet
+
+P3 usa `st.map`, cuyo fondo se descarga de internet; sin red se ve sin fondo, y la localidad, las
+coordenadas y la fecha siguen en texto. Streamlit 1.38 no permite fijar su altura.
+
+### Comparacion de la posicion con el acta (HU-10.2)
+
+El acta no tiene un campo de localidad: se busca el nombre de la localidad de la demo mas cercana a la
+posicion en `jurisdiccion`. Si el texto no nombra ninguna (por ejemplo, Vialidad Nacional), se informa
+que no se puede comparar.
+
+### Simulador en lugar de rastreadores
+
+El TFG presupuesta rastreadores Teltonika FMC920; la demo usa `scripts/simular_gps.py` por OsmAnd, como
+pide el prompt. Las posiciones no generan eventos POSICION en el historial, para no llenarlo: se consultan
+a Traccar y la ultima se guarda en `posicion_cache`. La ficha se actualiza al abrirla.
+
+### P10 y diferencias con las referencias
+
+La lista de motivos de pase es propia. El kilometraje se muestra sin editar: lo actualiza el ultimo
+movimiento. "Ir a infracciones" no aparece, porque Marketing no accede a las actas (Tabla 30). "Reportes"
+del menu no tiene historia de usuario y no se construye. Marketing ve todo el tablero, incluido Posventa,
+porque la Tabla 30 le da las fichas de todas las sucursales.
+
+### Revision con Qwen
+
+Qwen propuso casos limite, que se sumaron a las pruebas, y el borrador de `recorrido` del simulador,
+completado aqui porque llego cortado. De sus revisiones se aplicaron el filtro de circuito en las alertas
+de P2 y guardar el acta solo al ir a P6. El resto no aplicaba al codigo real.

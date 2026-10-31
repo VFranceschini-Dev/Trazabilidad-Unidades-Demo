@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.comercial.models import TipoUso, UsoComercial
-from app.core import estados
+from app.core import alertas, estados
 from app.core.auditoria import registrar as auditar
 from app.core.excepciones import ErrorDominio, NoEncontrado
 from app.tablas_generales.models import Cliente
@@ -82,6 +82,7 @@ def registrar_salida(
     )
     sesion.add(uso)
     unidad.km_actual = km_salida
+    alertas.verificar_service_proximo(sesion, unidad)
     sesion.flush()
     auditar(sesion, id_usuario=usuario.id, accion="USO_SALIDA", recurso=f"unidad:{unidad.id}", ip=ip, resultado="EXITO")
     return unidad, uso
@@ -125,6 +126,7 @@ def registrar_regreso(
     if observaciones:
         uso.observaciones = f"{uso.observaciones}\n{observaciones}" if uso.observaciones else observaciones
     unidad.km_actual = km_regreso
+    alertas.verificar_service_proximo(sesion, unidad)
     sesion.flush()
     auditar(sesion, id_usuario=usuario.id, accion="USO_REGRESO", recurso=f"unidad:{unidad.id}", ip=ip, resultado="EXITO")
     return unidad, uso

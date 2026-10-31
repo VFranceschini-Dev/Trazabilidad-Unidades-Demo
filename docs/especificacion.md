@@ -269,3 +269,41 @@ Prefijo `/api/v1`, documentación en `/api/v1/docs`. Toda ruta exige token y rol
 Esta etapa se apartó del prompt anterior: la lectura corre en n8n (`n8n/lector_actas.py`) y la
 ingesta recibe en JSON los datos leídos y el nombre del PDF que n8n guardó en el volumen compartido.
 Ver `decisiones.md`.
+
+# Etapa 4 — ubicación, tablero y alertas
+
+## Modelo de datos de esta etapa
+
+| Tabla | Puntos clave |
+| --- | --- |
+| `alerta` | tipo (ROTACION_VENCIDA, PRESTAMO_DEMORADO, SERVICE_PROXIMO, MULTA_POR_VENCER, ACTA_A_VALIDAR, DEVOLUCION_CON_DANOS, SIN_RESPONSABLE), referencia a unidad o acta, mensaje, estado, cierre con usuario, fecha y acción realizada; sin duplicar una alerta abierta del mismo tipo y referencia |
+| `parametro` | clave, valor, circuito y sucursal opcionales: plazo de rotación en meses por circuito, umbral OCR 80, aviso de service 500 km, aviso de multa 5 días, duración de token, intentos máximos |
+| `posicion_cache` | última posición conocida por unidad, para responder cuando Traccar no está disponible (HU-11 criterio 3) |
+
+## Transiciones de esta etapa
+
+| Estado origen | Evento | Estado destino | HU | Precondiciones |
+| --- | --- | --- | --- | --- |
+| DISPONIBLE o ASIGNADA | PASE_VENTA | EN_VENTA | HU-14 | sin actas PENDIENTE_VALIDACION, VALIDADA sin imputar; sin préstamo ni service abiertos |
+| EN_VENTA | BAJA | BAJA | HU-14 | motivo: venta como usado o devolución a la terminal |
+| cualquiera | POSICION, INFRACCION | sin cambio | HU-10, HU-11 | eventos informativos |
+
+## API de esta etapa
+
+Prefijo `/api/v1`, documentación en `/api/v1/docs`. Toda ruta exige token y rol salvo `salud` y `auth/ingresar`. Errores con un formato común `{codigo, mensaje, detalle}`.
+
+| Método | Ruta | HU | Roles |
+| --- | --- | --- | --- |
+| GET | `/unidades` (filtros: sucursal, circuito, estado) | HU-12 | según perfil; el asesor solo ve las suyas |
+| POST | `/unidades/{id}/pase-venta` · `/baja` | HU-14 | Resp. Marketing y Ventas |
+| GET | `/unidades/{id}/ubicacion` | HU-11 | lectura según perfil |
+| GET | `/tablero/indicadores` | HU-12 | Gerencia y responsables |
+| GET | `/alertas` · POST `/alertas/{id}/cerrar` | HU-13 | responsables de área |
+| POST | `/alertas/ejecutar-control` | HU-13 | Administrador del sistema |
+| GET | `/salud` | — | público |
+
+## Ubicación
+
+Servicio `traccar` (web 8082, OsmAnd 5055). El adaptador `TraccarPosiciones` consulta la última posición y la
+posición más cercana a un instante (±15 minutos), y guarda la última en `posicion_cache` para responder cuando Traccar
+no está disponible. Activá ahora la comparación de posición en la sugerencia de HU-10.

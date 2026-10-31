@@ -29,10 +29,15 @@ class Settings(BaseSettings):
 
     dms_api_url: str = "http://dms:8100"
     traccar_api_url: str = "http://traccar:8082"
+    traccar_usuario: str = "admin@demo.local"
+    traccar_clave: str = "demo-traccar"
     n8n_api_key: str = "cambiar_api_key_n8n"
 
     timezone_display: str = "America/Argentina/Buenos_Aires"
     sync_dms_cada_minutos: int = 1
+    # Tareas programadas: sincronizacion con el DMS y control diario de alertas a esta hora local
+    planificador_activo: bool = True
+    hora_control_alertas: int = 7
 
     cors_origenes: list[str] = ["https://localhost", "http://localhost:8501"]
 

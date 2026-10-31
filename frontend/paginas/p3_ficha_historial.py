@@ -1,7 +1,6 @@
 """P3. Ficha e historial de la unidad (HU-07, HU-11). Réplica de P3_ficha_historial.png.
 
-Datos actuales, línea de tiempo y botones de asignación, service, uso y préstamo.
-El mapa y el pase a venta se completan en etapas siguientes.
+Datos actuales, última posición, línea de tiempo y botones según el estado y el perfil.
 """
 
 from __future__ import annotations
@@ -22,6 +21,7 @@ from componentes.ui import (  # noqa: E402
     P4,
     P5,
     P7,
+    P10,
     chip_estado,
     inyectar_estilos,
     logo_lateral,
@@ -157,6 +157,11 @@ try:
                 st.switch_page(P4)
             if "LIBERACION" in acciones and botones[1].button("Liberar", use_container_width=True):
                 post_y_recargar(f"/unidades/{id_unidad}/liberar", {}, "Unidad liberada.")
+        if rol in ROLES_ASIGNACION:
+            if "PASE_VENTA" in acciones and botones[1].button("Pasar a venta", use_container_width=True):
+                st.switch_page(P10)
+            if "BAJA" in acciones and botones[1].button("Registrar baja", use_container_width=True):
+                st.switch_page(P10)
         if rol == "ASESOR":
             if "SALIDA" in acciones and botones[0].button("Registrar salida", type="primary", use_container_width=True):
                 st.switch_page(P7)
@@ -183,6 +188,23 @@ try:
                         {"km": int(km_egreso), "proximo_service_km": int(proximo)},
                         "Service cerrado.",
                     )
+
+    with col_datos, st.container(border=True):
+        titulo_seccion("Ubicación (Traccar)")
+        codigo, ubicacion = get(f"/unidades/{id_unidad}/ubicacion")
+        situacion = ubicacion.get("estado") if codigo == 200 else "ERROR"
+        if situacion in ("VIGENTE", "CACHE"):
+            if situacion == "CACHE":
+                st.warning("Traccar no responde: se muestra la última posición guardada.")
+            st.map([{"lat": ubicacion["latitud"], "lon": ubicacion["longitud"]}], zoom=12)
+            st.caption(
+                f"{ubicacion['localidad']} · {ubicacion['latitud']:.4f}, {ubicacion['longitud']:.4f} · "
+                f"última posición {mostrar_fecha(ubicacion['fecha_hora'])}"
+            )
+        elif situacion == "SIN_DISPOSITIVO":
+            st.info("La unidad no tiene un dispositivo vinculado: no hay datos de ubicación.")
+        else:
+            st.info("Todavía no hay datos de ubicación para esta unidad.")
 
     with col_historial, st.container(border=True):
         titulo_seccion("Historial de eventos")

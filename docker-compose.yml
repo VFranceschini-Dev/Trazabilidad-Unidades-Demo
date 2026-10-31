@@ -79,7 +79,7 @@ services:
     env_file: .env
     environment:
       BACKEND_DIR: /srv/backend
-      SYNC_DMS_CADA_MINUTOS: "0"  # la sincronizacion real alteraria a los usuarios de prueba
+      PLANIFICADOR_ACTIVO: "false"  # la sincronizacion real alteraria a los usuarios de prueba
       PYTHONPATH: /srv/backend:/srv/n8n
       TEST_DB_NAME: ${TEST_DB_NAME:-demo_unidades_test}
       DATABASE_URL: postgresql+psycopg://${DEMO_DB_APP_USER:-demo_app}:${DEMO_DB_APP_PASSWORD:?usar .env}@db:5432/${TEST_DB_NAME:-demo_unidades_test}

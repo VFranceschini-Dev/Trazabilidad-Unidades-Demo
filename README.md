@@ -56,7 +56,8 @@ sobre esa tabla; el rol dueño (`demo_migraciones`) ejecuta las migraciones.
 - **Etapa 1 — núcleo de trazabilidad:** ✅ identidad, motor de estados, sincronización DMS, pantallas P1, P2, P3, P4 y P8.
 - **Etapa 2 — operación diaria:** ✅ usos comerciales, préstamos por garantía, pantallas P5 y P7.
 - **Etapa 3 — circuito de infracciones:** ✅ correo, n8n, lectura de actas, bandeja y pantalla P6.
-- Etapas 4 y 5: ubicación/GPS y tablero, empaquetado final.
+- **Etapa 4 — ubicación, tablero y alertas:** ✅ Traccar con simulador, pantallas P2, P9 y P10, y mapa en P3.
+- Etapa 5: empaquetado final.
 
 ## Desarrollo
 
@@ -69,6 +70,14 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db api web 
 Web en `http://localhost:8501` y API en `http://localhost:8000/api/v1/docs`. La primera vez,
 cargar los datos con `docker compose exec api python /srv/scripts/seed.py` (en Git Bash,
 anteponer `MSYS_NO_PATHCONV=1`).
+
+## Posiciones GPS de prueba
+
+`make gps` da de alta los dispositivos en Traccar y envía los recorridos. Sin `make`:
+
+```bash
+docker compose exec -T api python /srv/scripts/simular_gps.py
+```
 
 ## Actas de prueba
 
